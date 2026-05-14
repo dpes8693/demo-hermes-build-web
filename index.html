@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alex Chen — Senior Engineer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #000000;
+    --fg: #ffffff;
+    --muted: #888888;
+    --border: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.3);
+    --card-bg: rgba(10, 10, 10, 0.6);
+    --accent: #ffffff;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Background grid */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Particles canvas */
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Subtle radial glow */
+  .glow {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Top bar */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 20px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--muted);
+    z-index: 10;
+    letter-spacing: 0.05em;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--fg);
+  }
+
+  .logo-mark {
+    width: 18px;
+    height: 18px;
+    background: var(--fg);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff88;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Main container */
+  .scene {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1500px;
+    z-index: 5;
+  }
+
+  /* Card */
+  .card {
+    position: relative;
+    width: 420px;
+    height: 240px;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .card-face::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
+    pointer-events: none;
+  }
+
+  .card:hover .card-face {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 60px rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(255,255,255,0.05);
+  }
+
+  .card-front {
+    transform: rotateY(0deg);
+  }
+
+  .card-back {
+    transform: rotateY(180deg);
+  }
+
+  /* Front face content */
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    z-index: 2;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 14px;
+    height: 14px;
+    background: var(--fg);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+
+  .brand-text {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card-id {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    font-family: inherit;
+  }
+
+  .card-name {
+    position: relative;
+    z-index: 2;
+  }
+
+  .name {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+    background: linear-gradient(180deg, #ffffff 0%, #aaaaaa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .title {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .title .accent {
+    color: var(--fg);
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    position: relative;
+    z-index: 2;
+  }
+
+  .company {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .flip-hint {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.6;
+  }
+
+  .flip-icon {
+    display: inline-block;
+    animation: flipBounce 2s ease-in-out infinite;
+  }
+
+  @keyframes flipBounce {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(3px); }
+  }
+
+  /* Back face content */
+  .card-back .card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    justify-content: center;
+  }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+  }
+
+  .info-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    min-width: 60px;
+  }
+
+  .info-value {
+    color: var(--fg);
+    letter-spacing: 0.02em;
+  }
+
+  .info-value a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+  }
+
+  .info-value a:hover {
+    border-bottom-color: var(--fg);
+  }
+
+  /* Corner decorations */
+  .corner {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: rgba(255,255,255,0.3);
+    border-style: solid;
+    z-index: 1;
+  }
+
+  .corner.tl { top: 12px; left: 12px; border-width: 1px 0 0 1px; }
+  .corner.tr { top: 12px; right: 12px; border-width: 1px 1px 0 0; }
+  .corner.bl { bottom: 12px; left: 12px; border-width: 0 0 1px 1px; }
+  .corner.br { bottom: 12px; right: 12px; border-width: 0 1px 1px 0; }
+
+  /* Bottom bar */
+  .bottombar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 20px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+    z-index: 10;
+    letter-spacing: 0.05em;
+  }
+
+  .build-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .build-info span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Responsive */
+  @media (max-width: 520px) {
+    .card { width: 90vw; height: 220px; }
+    .name { font-size: 22px; }
+    .topbar, .bottombar { padding: 16px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <canvas id="particles"></canvas>
+  <div class="glow"></div>
+
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <span>PORTFOLIO/V1.0</span>
+    </div>
+    <div class="status">
+      <span class="status-dot"></span>
+      <span>AVAILABLE FOR WORK</span>
+    </div>
+  </header>
+
+  <main class="scene">
+    <div class="card" id="card">
+      <!-- Front -->
+      <div class="card-face card-front">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <div class="card-header">
+          <div class="brand">
+            <div class="brand-mark"></div>
+            <span class="brand-text">NORTHWIND LABS</span>
+          </div>
+          <span class="card-id">ID — 0x4F7A</span>
+        </div>
+
+        <div class="card-name">
+          <div class="name">Alex Chen</div>
+          <div class="title">Senior Software <span class="accent">Engineer</span></div>
+        </div>
+
+        <div class="card-footer">
+          <span class="company">SAN FRANCISCO · CA</span>
+          <span class="flip-hint">CLICK TO FLIP <span class="flip-icon">→</span></span>
+        </div>
+      </div>
+
+      <!-- Back -->
+      <div class="card-face card-back">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <div class="card-content">
+          <div class="info-row">
+            <span class="info-label">Email</span>
+            <span class="info-value"><a href="mailto:alex.chen@northwind.dev">alex.chen@northwind.dev</a></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Phone</span>
+            <span class="info-value">+1 (415) 555-0182</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Web</span>
+            <span class="info-value"><a href="#">alexchen.dev</a></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">GitHub</span>
+            <span class="info-value"><a href="#">@alexc</a></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Stack</span>
+            <span class="info-value">TypeScript · Rust · Go</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bottombar">
+    <div class="build-info">
+      <span>BUILD — 2026.05.15</span>
+      <span>·</span>
+      <span>EDGE — IAD1</span>
+    </div>
+    <div class="build-info">
+      <span>RUNTIME — STABLE</span>
+    </div>
+  </footer>
+
+<script>
+  // Card flip
+  const card = document.getElementById('card');
+  card.addEventListener('click', () => {
+    card.classList.toggle('flipped');
+  });
+
+  // Particle effect
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+
+  let w, h, particles, mouse = { x: -1000, y: -1000 };
+
+  function resize() {
+    w = canvas.width = window.innerWidth * window.devicePixelRatio;
+    h = canvas.height = window.innerHeight * window.devicePixelRatio;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    initParticles();
+  }
+
+  function initParticles() {
+    const count = Math.min(110, Math.floor((window.innerWidth * window.innerHeight) / 14000));
+    particles = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25,
+        r: Math.random() * 1.4 + 0.4,
+        alpha: Math.random() * 0.5 + 0.2,
+      });
+    }
+  }
+
+  function step() {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    // Draw connections
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 120) {
+          ctx.strokeStyle = `rgba(255,255,255,${(1 - d/120) * 0.08})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw particles
+    particles.forEach(p => {
+      // Mouse interaction
+      const mdx = p.x - mouse.x;
+      const mdy = p.y - mouse.y;
+      const md = Math.sqrt(mdx*mdx + mdy*mdy);
+      if (md < 100) {
+        const force = (100 - md) / 100;
+        p.x += (mdx / md) * force * 0.8;
+        p.y += (mdy / md) * force * 0.8;
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap
+      if (p.x < 0) p.x = window.innerWidth;
+      if (p.x > window.innerWidth) p.x = 0;
+      if (p.y < 0) p.y = window.innerHeight;
+      if (p.y > window.innerHeight) p.y = 0;
+
+      ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    requestAnimationFrame(step);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+  window.addEventListener('mouseleave', () => {
+    mouse.x = -1000;
+    mouse.y = -1000;
+  });
+
+  resize();
+  step();
+</script>
+</body>
+</html>
