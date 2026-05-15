@@ -59,54 +59,6 @@
     z-index: 2;
   }
 
-  /* Top bar */
-  .topbar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    padding: 20px 28px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--muted);
-    z-index: 10;
-    letter-spacing: 0.05em;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--fg);
-  }
-
-  .logo-mark {
-    width: 18px;
-    height: 18px;
-    background: var(--fg);
-    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-  }
-
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    background: #00ff88;
-    border-radius: 50%;
-    box-shadow: 0 0 8px #00ff88;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
   /* Main container */
   .scene {
     position: relative;
@@ -326,37 +278,10 @@
   .corner.bl { bottom: 12px; left: 12px; border-width: 0 0 1px 1px; }
   .corner.br { bottom: 12px; right: 12px; border-width: 0 1px 1px 0; }
 
-  /* Bottom bar */
-  .bottombar {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    padding: 20px 28px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: var(--muted);
-    z-index: 10;
-    letter-spacing: 0.05em;
-  }
-
-  .build-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .build-info span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   /* Responsive */
   @media (max-width: 520px) {
     .card { width: 90vw; height: 220px; }
     .name { font-size: 22px; }
-    .topbar, .bottombar { padding: 16px; font-size: 10px; }
   }
 </style>
 </head>
@@ -364,17 +289,6 @@
   <div class="grid-bg"></div>
   <canvas id="particles"></canvas>
   <div class="glow"></div>
-
-  <header class="topbar">
-    <div class="logo">
-      <div class="logo-mark"></div>
-      <span>PORTFOLIO/V1.0</span>
-    </div>
-    <div class="status">
-      <span class="status-dot"></span>
-      <span>AVAILABLE FOR WORK</span>
-    </div>
-  </header>
 
   <main class="scene">
     <div class="card" id="card">
@@ -436,17 +350,6 @@
       </div>
     </div>
   </main>
-
-  <footer class="bottombar">
-    <div class="build-info">
-      <span>BUILD — 2026.05.15</span>
-      <span>·</span>
-      <span>EDGE — IAD1</span>
-    </div>
-    <div class="build-info">
-      <span>RUNTIME — STABLE</span>
-    </div>
-  </footer>
 
 <script>
   // Card flip
