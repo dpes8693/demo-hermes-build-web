@@ -1,0 +1,103 @@
+extends Node2D
+## 程式繪製的 2D 史萊姆（不需要美術素材）。
+## 由 main.gd 加為子節點並放在視窗中央；main 負責移動 OS 視窗，
+## slime 只負責「果凍彈跳」的擠壓/伸展動畫、眼睛與表情。
+
+@export var base_radius_x: float = 78.0
+@export var base_radius_y: float = 62.0
+@export var body_color: Color = Color("5fd17a")
+@export var body_color_light: Color = Color("8ff0a6")
+
+var moving := false          # 由 main 設定：是否正在橫越桌面
+var face_dir := 1.0          # 1 向右、-1 向左
+
+var _t := 0.0                # 動畫時間
+var _hop_phase := 0.0        # 彈跳相位
+var _blink := 0.0            # 眨眼計時
+var _blink_timer := 0.0
+
+func _ready() -> void:
+	_blink_timer = randf_range(2.0, 5.0)
+	set_process(true)
+
+func _process(delta: float) -> void:
+	_t += delta
+	# 移動時彈得快，閒置時慢慢呼吸
+	var speed := 7.0 if moving else 2.2
+	_hop_phase += delta * speed
+
+	# 眨眼
+	_blink_timer -= delta
+	if _blink_timer <= 0.0:
+		_blink = 0.18
+		_blink_timer = randf_range(2.0, 5.0)
+	if _blink > 0.0:
+		_blink = max(0.0, _blink - delta)
+
+	queue_redraw()
+
+func _draw() -> void:
+	# 彈跳：用 sin 控制擠壓量，移動時幅度較大
+	var amp := 0.16 if moving else 0.06
+	var squash := sin(_hop_phase) * amp           # >0 變扁、<0 變高
+	var rx := base_radius_x * (1.0 + squash * 0.6)
+	var ry := base_radius_y * (1.0 - squash)
+	var lift := -absf(sin(_hop_phase)) * (18.0 if moving else 4.0)  # 跳起時往上
+
+	var body_center := Vector2(0, lift)
+
+	# 影子（固定在地面，跳越高越小越淡）
+	var shadow_scale := 1.0 - absf(sin(_hop_phase)) * 0.35
+	_draw_ellipse(Vector2(0, base_radius_y * 0.55), rx * 0.85 * shadow_scale,
+		ry * 0.28 * shadow_scale, Color(0, 0, 0, 0.18))
+
+	# 身體
+	_draw_ellipse(body_center, rx, ry, body_color)
+	# 高光（偏左上的較亮橢圓）
+	_draw_ellipse(body_center + Vector2(-rx * 0.22, -ry * 0.28),
+		rx * 0.55, ry * 0.5, Color(body_color_light, 0.55))
+
+	# 眼睛
+	var eye_dx := rx * 0.34
+	var eye_y := body_center.y - ry * 0.05
+	var look := face_dir * rx * 0.06
+	_draw_eye(Vector2(-eye_dx + look, eye_y))
+	_draw_eye(Vector2(eye_dx + look, eye_y))
+
+	# 嘴巴：移動時開心張嘴，閒置時微笑弧線
+	_draw_mouth(body_center, rx, ry)
+
+func _draw_eye(center: Vector2) -> void:
+	var open := 1.0 - clamp(_blink / 0.18, 0.0, 1.0)  # 0=閉眼 1=睜眼
+	var w := 11.0
+	var h := 13.0 * open + 1.0
+	_draw_ellipse(center, w, h, Color.WHITE)
+	if open > 0.25:
+		# 瞳孔朝向移動方向
+		var pupil := center + Vector2(face_dir * 3.0, 2.0)
+		_draw_ellipse(pupil, 5.0, 5.0 * open, Color("1d2b22"))
+		_draw_ellipse(pupil + Vector2(-1.6, -1.6), 1.6, 1.6, Color(1, 1, 1, 0.8))
+
+func _draw_mouth(c: Vector2, rx: float, ry: float) -> void:
+	var my := c.y + ry * 0.32
+	if moving:
+		# 張開的小嘴（橢圓）
+		_draw_ellipse(Vector2(c.x, my), 12.0, 9.0, Color("9c3b3b"))
+	else:
+		# 微笑弧線
+		var pts := PackedVector2Array()
+		var n := 14
+		for i in range(n + 1):
+			var tt := float(i) / float(n)
+			var x := lerp(-16.0, 16.0, tt)
+			var y := sin(tt * PI) * 8.0
+			pts.append(Vector2(c.x + x, my + y))
+		for i in range(pts.size() - 1):
+			draw_line(pts[i], pts[i + 1], Color("1d2b22"), 3.0)
+
+func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color, segments: int = 40) -> void:
+	var pts := PackedVector2Array()
+	for i in range(segments):
+		var a := TAU * float(i) / float(segments)
+		pts.append(center + Vector2(cos(a) * rx, sin(a) * ry))
+	draw_colored_polygon(pts, color)

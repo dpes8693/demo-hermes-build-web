@@ -1,0 +1,165 @@
+extends Node
+## 跨平台原生互動 (autoload: Platform)
+## - get_active_window()  取得目前前景視窗的 App 名稱與標題
+## - capture_screenshot(real_path)  對整個螢幕截圖（選用）
+##
+## 由於各作業系統取得「前景視窗」沒有統一 API，這裡用 OS.execute 呼叫系統工具：
+##   Windows : PowerShell + user32.dll
+##   macOS   : osascript (System Events)  ── 需在「系統設定 > 隱私權 > 輔助使用」授權
+##   Linux   : xdotool (X11)              ── 需先安裝 xdotool；Wayland 取窗有限制
+##
+## 截圖：
+##   Windows : PowerShell + System.Drawing
+##   macOS   : screencapture            ── 需「螢幕錄製」權限
+##   Linux   : scrot / gnome-screenshot / import 擇一
+
+const BIN_DIR := "user://bin"
+
+var _os := ""
+var _win_active_ps := ""
+var _win_shot_ps := ""
+
+func _ready() -> void:
+	_os = OS.get_name()
+	if _os == "Windows":
+		_write_windows_helpers()
+
+# ---------------------------------------------------------------------------
+# 前景視窗
+# ---------------------------------------------------------------------------
+func get_active_window() -> Dictionary:
+	match _os:
+		"Windows":
+			return _windows_active()
+		"macOS":
+			return _macos_active()
+		"Linux", "FreeBSD", "NetBSD", "OpenBSD", "BSD":
+			return _linux_active()
+		_:
+			return {"app": "unknown", "title": ""}
+
+func _windows_active() -> Dictionary:
+	var raw := _run("powershell", PackedStringArray([
+		"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", _win_active_ps
+	]))
+	var lines := raw.split("\n", false)
+	var app := lines[0].strip_edges() if lines.size() > 0 else ""
+	var title := lines[1].strip_edges() if lines.size() > 1 else ""
+	if app == "" and title == "":
+		return {"app": "unknown", "title": ""}
+	return {"app": app, "title": title}
+
+func _macos_active() -> Dictionary:
+	var raw := _run("osascript", PackedStringArray([
+		"-e", "tell application \"System Events\"",
+		"-e", "set frontApp to first application process whose frontmost is true",
+		"-e", "set appName to name of frontApp",
+		"-e", "try",
+		"-e", "set winTitle to name of front window of frontApp",
+		"-e", "on error",
+		"-e", "set winTitle to \"\"",
+		"-e", "end try",
+		"-e", "end tell",
+		"-e", "return appName & \"\\n\" & winTitle",
+	]))
+	var lines := raw.split("\n", false)
+	var app := lines[0].strip_edges() if lines.size() > 0 else ""
+	var title := lines[1].strip_edges() if lines.size() > 1 else ""
+	if app == "":
+		return {"app": "unknown", "title": ""}
+	return {"app": app, "title": title}
+
+func _linux_active() -> Dictionary:
+	var title := _run("xdotool", PackedStringArray(["getactivewindow", "getwindowname"]))
+	var cls := _run("xdotool", PackedStringArray(["getactivewindow", "getwindowclassname"]))
+	cls = cls.strip_edges()
+	title = title.strip_edges()
+	if cls == "" and title == "":
+		# xdotool 不存在或 Wayland 取不到
+		return {"app": "unknown(需安裝 xdotool，且在 X11 下)", "title": ""}
+	if cls == "":
+		cls = "unknown"
+	return {"app": cls, "title": title}
+
+# ---------------------------------------------------------------------------
+# 截圖（real_path 必須是真實檔案系統路徑，例如 globalize_path 之後）
+# ---------------------------------------------------------------------------
+func capture_screenshot(real_path: String) -> bool:
+	match _os:
+		"Windows":
+			_run("powershell", PackedStringArray([
+				"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", _win_shot_ps, real_path
+			]))
+		"macOS":
+			_run("screencapture", PackedStringArray(["-x", real_path]))
+		"Linux", "FreeBSD", "NetBSD", "OpenBSD", "BSD":
+			if not _try_linux_shot(real_path):
+				return false
+		_:
+			return false
+	return FileAccess.file_exists(real_path)
+
+func _try_linux_shot(real_path: String) -> bool:
+	# 依序嘗試常見工具
+	if OS.execute("scrot", PackedStringArray(["-o", real_path])) == 0:
+		return true
+	if OS.execute("gnome-screenshot", PackedStringArray(["-f", real_path])) == 0:
+		return true
+	if OS.execute("import", PackedStringArray(["-window", "root", real_path])) == 0:
+		return true
+	return false
+
+# ---------------------------------------------------------------------------
+# 工具
+# ---------------------------------------------------------------------------
+func _run(cmd: String, args: PackedStringArray) -> String:
+	var out: Array = []
+	var code := OS.execute(cmd, args, out, true)
+	if code == -1:
+		return ""
+	if out.size() > 0:
+		return String(out[0])
+	return ""
+
+func _write_windows_helpers() -> void:
+	DirAccess.make_dir_recursive_absolute(BIN_DIR)
+
+	var active_src := """Add-Type @\"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public class WinFg {
+  [DllImport(\"user32.dll\")] public static extern IntPtr GetForegroundWindow();
+  [DllImport(\"user32.dll\")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport(\"user32.dll\")] public static extern int GetWindowThreadProcessId(IntPtr h, out uint id);
+}
+\"@
+$h = [WinFg]::GetForegroundWindow()
+$sb = New-Object System.Text.StringBuilder 1024
+[void][WinFg]::GetWindowText($h, $sb, 1024)
+$procId = [uint32]0
+[void][WinFg]::GetWindowThreadProcessId($h, [ref]$procId)
+$name = (Get-Process -Id $procId -ErrorAction SilentlyContinue).ProcessName
+Write-Output $name
+Write-Output $sb.ToString()
+"""
+	_save_text("%s/win_active.ps1" % BIN_DIR, active_src)
+	_win_active_ps = ProjectSettings.globalize_path("%s/win_active.ps1" % BIN_DIR)
+
+	var shot_src := """Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$b = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+$bmp.Save($args[0], [System.Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose(); $bmp.Dispose()
+"""
+	_save_text("%s/win_shot.ps1" % BIN_DIR, shot_src)
+	_win_shot_ps = ProjectSettings.globalize_path("%s/win_shot.ps1" % BIN_DIR)
+
+func _save_text(path: String, text: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(text)
+		f.close()
