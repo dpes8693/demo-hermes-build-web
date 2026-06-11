@@ -8,13 +8,15 @@ var _base_url: LineEdit
 var _interval: SpinBox
 var _work_hours: SpinBox
 var _screenshot: CheckBox
+var _ocr_lang: LineEdit
+var _keep_shots: CheckBox
 var _tracking: CheckBox
 var _status: Label
 
 func _ready() -> void:
 	title = "設定"
-	size = Vector2i(520, 520)
-	min_size = Vector2i(420, 460)
+	size = Vector2i(540, 660)
+	min_size = Vector2i(460, 600)
 	exclusive = false
 	close_requested.connect(hide)
 
@@ -60,11 +62,26 @@ func _ready() -> void:
 	vbox.add_child(_tracking)
 
 	_screenshot = CheckBox.new()
-	_screenshot.text = "額外儲存本機螢幕截圖（僅存本機，不上傳）"
+	_screenshot.text = "啟用螢幕截圖 + 本機 OCR（圖片不上傳，只送辨識出的文字）"
 	vbox.add_child(_screenshot)
 
+	_ocr_lang = LineEdit.new()
+	_ocr_lang.placeholder_text = "例如 eng 或 chi_tra+eng"
+	_add_field(vbox, "OCR 語言（Tesseract，需裝對應語言包）", _ocr_lang)
+
+	_keep_shots = CheckBox.new()
+	_keep_shots.text = "保留截圖檔（預設關閉；OCR 完即刪以省空間／保護隱私）"
+	vbox.add_child(_keep_shots)
+
+	var ocr_status := Label.new()
+	ocr_status.text = "Tesseract 偵測：" \
+		+ ("已安裝 ✓" if Platform.ocr_available() else "未偵測到 ✗（請先安裝 tesseract）")
+	ocr_status.add_theme_color_override("font_color",
+		Color(0.5, 0.85, 0.6) if Platform.ocr_available() else Color(0.9, 0.6, 0.5))
+	vbox.add_child(ocr_status)
+
 	var hint := Label.new()
-	hint.text = "提示：總結時只會把『文字紀錄』送到 Claude API；截圖永遠留在本機。" \
+	hint.text = "提示：截圖只在本機做 OCR，圖片永遠不離開電腦；總結時只會把『文字』送到 Claude API。" \
 		+ "API key 也可改用環境變數 ANTHROPIC_API_KEY。"
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
@@ -114,6 +131,8 @@ func load_from_config() -> void:
 	_work_hours.value = Config.work_hours
 	_tracking.button_pressed = Config.tracking_enabled
 	_screenshot.button_pressed = Config.screenshot_enabled
+	_ocr_lang.text = Config.ocr_lang
+	_keep_shots.button_pressed = Config.keep_screenshots
 	var idx := Config.MODELS.find(Config.model)
 	_model.selected = idx if idx >= 0 else 0
 
@@ -124,6 +143,8 @@ func _on_save() -> void:
 	Config.capture_interval_sec = int(_interval.value)
 	Config.work_hours = float(_work_hours.value)
 	Config.screenshot_enabled = _screenshot.button_pressed
+	Config.ocr_lang = _ocr_lang.text.strip_edges()
+	Config.keep_screenshots = _keep_shots.button_pressed
 	Config.tracking_enabled = _tracking.button_pressed
 	Config.save_settings()
 

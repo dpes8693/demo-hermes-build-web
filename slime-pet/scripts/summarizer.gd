@@ -69,17 +69,22 @@ func _build_report(date_str: String, samples: Array) -> String:
 		lines.append("- %s：約 %.0f 分鐘（%d 筆）" % [app, mins, cnt])
 
 	lines.append("")
-	lines.append("=== 時間軸（time | app | 視窗標題） ===")
+	lines.append("=== 時間軸（time | app | 視窗標題 | 螢幕文字摘錄） ===")
+	lines.append("(「螢幕文字摘錄」為本機 OCR 的畫面內容，可用來判斷實際在做什麼)")
 	# 控制長度：最多列 600 筆
 	var shown := samples
 	if samples.size() > 600:
 		shown = samples.slice(samples.size() - 600, samples.size())
 		lines.append("(僅顯示最後 600 筆)")
 	for s in shown:
-		lines.append("%s | %s | %s" % [
+		var ocr := String(s.get("ocr", "")).strip_edges()
+		if ocr.length() > 160:
+			ocr = ocr.substr(0, 160) + "…"
+		lines.append("%s | %s | %s | %s" % [
 			String(s.get("time", "")),
 			String(s.get("app", "")),
 			String(s.get("title", "")),
+			ocr,
 		])
 
 	return "\n".join(lines)
@@ -96,8 +101,9 @@ func _request_claude(report: String) -> void:
 	])
 
 	var system_prompt := "你是一位協助上班族撰寫『每日工作回報』的助理。" \
-		+ "使用者提供了一整天電腦前景視窗的取樣紀錄（App 名稱與視窗標題），" \
-		+ "以及每個 App 的估計時間。請根據這些線索，推論使用者今天實際在做哪些『工作項目／專案』，" \
+		+ "使用者提供了一整天電腦前景視窗的取樣紀錄（App 名稱、視窗標題，以及本機 OCR 辨識出的『螢幕文字摘錄』），" \
+		+ "以及每個 App 的估計時間。螢幕文字摘錄能幫你判斷同一個 App 實際在做什麼" \
+		+ "（例如瀏覽器是在查技術文件、看影片還是處理工單）。請綜合這些線索，推論使用者今天實際在做哪些『工作項目／專案』，" \
 		+ "並彙整成一份精煉的中文日報。要求：\n" \
 		+ "1) 先用一句話總結今天的重點。\n" \
 		+ "2) 接著用條列分項列出主要工作（依花費時間排序），每項註明推估時數。\n" \

@@ -110,6 +110,44 @@ func _try_linux_shot(real_path: String) -> bool:
 	return false
 
 # ---------------------------------------------------------------------------
+# 本機 OCR（Tesseract）── 圖片不離開電腦，只回傳辨識出的文字
+# ---------------------------------------------------------------------------
+var _ocr_checked := false
+var _ocr_ok := false
+
+## 系統是否裝了 tesseract（且在 PATH 上）。結果快取，避免每次取樣都開子程序。
+func ocr_available() -> bool:
+	if not _ocr_checked:
+		var out: Array = []
+		_ocr_ok = OS.execute("tesseract", PackedStringArray(["--version"]), out, true) == 0
+		_ocr_checked = true
+	return _ocr_ok
+
+## 對圖檔做 OCR；lang 例如 "eng" 或 "chi_tra+eng"（需安裝對應語言包）
+func ocr_image(real_path: String, lang: String) -> String:
+	if lang.strip_edges() == "":
+		lang = "eng"
+	var out: Array = []
+	# tesseract <影像> stdout -l <語言>  ── 結果輸出到 stdout
+	var code := OS.execute("tesseract",
+		PackedStringArray([real_path, "stdout", "-l", lang]), out, true)
+	if code != 0 or out.is_empty():
+		return ""
+	return _clean_ocr(String(out[0]))
+
+func _clean_ocr(text: String) -> String:
+	# 去掉空白與雜訊行，壓成單行，並限制長度避免日報過長
+	var kept: Array = []
+	for ln in text.split("\n", false):
+		var s := ln.strip_edges()
+		if s.length() >= 2:
+			kept.append(s)
+	var joined := " / ".join(kept)
+	if joined.length() > 600:
+		joined = joined.substr(0, 600)
+	return joined
+
+# ---------------------------------------------------------------------------
 # 工具
 # ---------------------------------------------------------------------------
 func _run(cmd: String, args: PackedStringArray) -> String:

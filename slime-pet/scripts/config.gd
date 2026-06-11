@@ -18,7 +18,9 @@ var model: String = "claude-opus-4-8"
 var anthropic_base_url: String = "https://api.anthropic.com"
 
 var capture_interval_sec: int = 60          # 多久取樣一次（秒）
-var screenshot_enabled: bool = false        # 是否額外存本機截圖（混合模式預設關閉）
+var screenshot_enabled: bool = false        # 是否啟用「螢幕截圖 + 本機 OCR」
+var ocr_lang: String = "chi_tra+eng"        # Tesseract 辨識語言（需安裝對應語言包）
+var keep_screenshots: bool = false          # OCR 後是否保留截圖檔（預設關閉、辨識完即刪）
 var tracking_enabled: bool = true           # 是否啟用背景追蹤
 
 # 一天預計回報的工時，用來輔助總結估算
@@ -42,6 +44,8 @@ func load_settings() -> void:
 	anthropic_base_url = String(cf.get_value("api", "base_url", "https://api.anthropic.com"))
 	capture_interval_sec = int(cf.get_value("capture", "interval_sec", 60))
 	screenshot_enabled = bool(cf.get_value("capture", "screenshot_enabled", false))
+	ocr_lang = String(cf.get_value("capture", "ocr_lang", "chi_tra+eng"))
+	keep_screenshots = bool(cf.get_value("capture", "keep_screenshots", false))
 	tracking_enabled = bool(cf.get_value("capture", "tracking_enabled", true))
 	work_hours = float(cf.get_value("report", "work_hours", 8.0))
 
@@ -52,6 +56,8 @@ func save_settings() -> void:
 	cf.set_value("api", "base_url", anthropic_base_url)
 	cf.set_value("capture", "interval_sec", capture_interval_sec)
 	cf.set_value("capture", "screenshot_enabled", screenshot_enabled)
+	cf.set_value("capture", "ocr_lang", ocr_lang)
+	cf.set_value("capture", "keep_screenshots", keep_screenshots)
 	cf.set_value("capture", "tracking_enabled", tracking_enabled)
 	cf.set_value("report", "work_hours", work_hours)
 	cf.save(CONFIG_PATH)

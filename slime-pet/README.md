@@ -13,17 +13,20 @@
 - **桌面寵物**：透明、無邊框、永遠置頂的小視窗，史萊姆會果凍般彈跳並在桌面四處漫遊。
   - 左鍵**拖曳**可以把牠搬到任何地方。
   - 左鍵**單擊**叫出選單。
-- **背景追蹤（混合模式）**：每隔一段時間（預設 60 秒）記錄目前前景視窗的
-  **App 名稱 + 視窗標題**。截圖功能可選擇開啟，但截圖**只存在本機、不會上傳**。
+- **背景追蹤**：每隔一段時間（預設 60 秒）記錄目前前景視窗的 **App 名稱 + 視窗標題**。
+  - 可選開啟 **螢幕截圖 + 本機 OCR**：在本機用 Tesseract 把畫面文字抽出來，
+    **只保留辨識出的文字**，截圖預設辨識完即刪、永遠不離開電腦。
+    這能解決「光看 App 名稱不準」的問題（例如分辨 Chrome 是在查文件還是看影片）。
+  - 取窗、截圖、OCR 都在**背景執行緒**進行，史萊姆動畫不會卡頓。
 - **今日總結**：把當天的文字紀錄彙整後送 [Claude API](https://docs.claude.com/)，
   產生一份條列式、含估計時數的中文工作日報，可一鍵複製去貼到回報系統。
   - 沒設定 API key 時，會退回**離線規則式彙整**（各 App 時間佔比 + 時間軸），完全不連網。
 
-### 為什麼是「混合模式」
+### 隱私設計
 
-平常只在本機累積**文字**（視窗標題），隱私風險低、零 API 成本；
+平常只在本機累積**文字**（視窗標題，以及 OCR 辨識出的螢幕文字），隱私風險低、零 API 成本；
 只有當你按下「今日總結」時，才把整理過的**文字**送出去交給模型理解與分類。
-螢幕截圖屬選用，且永遠不離開你的電腦。
+**螢幕截圖只在本機做 OCR，圖片永遠不離開你的電腦**（預設辨識完即刪）。
 
 ---
 
@@ -56,6 +59,20 @@ Godot → **Project → Export**，加入對應平台的 Export Preset（Windows
 截圖（選用）使用：Windows = System.Drawing；macOS = `screencapture`；
 Linux = `scrot` / `gnome-screenshot` / `import`（ImageMagick）擇一。
 
+### 本機 OCR：安裝 Tesseract（啟用「螢幕截圖 + OCR」才需要）
+
+OCR 用 [Tesseract](https://github.com/tesseract-ocr/tesseract)，需在 PATH 上。語言包要另裝
+（在「設定」的 OCR 語言填 `eng`、`chi_tra+eng` 等；繁中需 `chi_tra`、簡中 `chi_sim`）。
+
+| 系統 | 安裝指令 |
+|------|----------|
+| **Windows** | 安裝 [UB-Mannheim 版](https://github.com/UB-Mannheim/tesseract/wiki)，安裝時勾選語言包，並把安裝路徑加進 PATH |
+| **macOS** | `brew install tesseract tesseract-lang` |
+| **Linux (Debian/Ubuntu)** | `sudo apt install tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-eng` |
+
+未安裝 Tesseract 時：截圖會略過 OCR，程式自動退回「只用視窗標題」，不會出錯。
+（「設定」視窗會顯示是否偵測到 Tesseract。）
+
 ---
 
 ## 資料存放位置
@@ -64,8 +81,9 @@ Linux = `scrot` / `gnome-screenshot` / `import`（ImageMagick）擇一。
 `OS.get_user_data_dir()` 查看）：
 
 - `settings.cfg` — 設定（含 API key，請自行注意保管）。
-- `activity/YYYY-MM-DD.json` — 每日活動樣本。
-- `screenshots/YYYY-MM-DD/HHMMSS.png` — 截圖（若啟用）。
+- `activity/YYYY-MM-DD.json` — 每日活動樣本（含 OCR 文字）。
+- `screenshots/YYYY-MM-DD/HHMMSS.png` — 截圖（**僅在「保留截圖檔」開啟時**才會留下；
+  預設 OCR 完即刪）。
 
 ---
 
