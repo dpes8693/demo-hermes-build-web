@@ -1,10 +1,8 @@
 extends Window
-## 「設定」視窗（以程式碼建構 UI）。
-## 可設定 API key、模型、取樣間隔、是否截圖、是否追蹤、預計工時。
+## 「設定」視窗（純記錄器版本）。
+## 不再有 API key / 模型設定；改為設定輸出資料夾、取樣間隔、OCR、工時等。
 
-var _api_key: LineEdit
-var _model: OptionButton
-var _base_url: LineEdit
+var _export_dir: LineEdit
 var _interval: SpinBox
 var _work_hours: SpinBox
 var _screenshot: CheckBox
@@ -15,8 +13,8 @@ var _status: Label
 
 func _ready() -> void:
 	title = "設定"
-	size = Vector2i(540, 660)
-	min_size = Vector2i(460, 600)
+	size = Vector2i(560, 640)
+	min_size = Vector2i(480, 560)
 	exclusive = false
 	close_requested.connect(hide)
 
@@ -30,18 +28,18 @@ func _ready() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 
-	_api_key = LineEdit.new()
-	_api_key.secret = true
-	_api_key.placeholder_text = "sk-ant-..."
-	_add_field(vbox, "Anthropic API Key", _api_key)
-
-	_model = OptionButton.new()
-	for m in Config.MODELS:
-		_model.add_item(m)
-	_add_field(vbox, "模型", _model)
-
-	_base_url = LineEdit.new()
-	_add_field(vbox, "API Base URL", _base_url)
+	# 輸出資料夾 + 開啟按鈕
+	_export_dir = LineEdit.new()
+	_export_dir.placeholder_text = "例如 /Users/you/Documents/SlimePet"
+	var dir_row := HBoxContainer.new()
+	dir_row.add_theme_constant_override("separation", 6)
+	_export_dir.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dir_row.add_child(_export_dir)
+	var open_btn := Button.new()
+	open_btn.text = "開啟"
+	open_btn.pressed.connect(_open_export_dir)
+	dir_row.add_child(open_btn)
+	_add_field(vbox, "輸出資料夾（Claude 排程端指向這裡讀取）", dir_row)
 
 	_interval = SpinBox.new()
 	_interval.min_value = 5
@@ -55,14 +53,14 @@ func _ready() -> void:
 	_work_hours.max_value = 24
 	_work_hours.step = 0.5
 	_work_hours.suffix = " 小時"
-	_add_field(vbox, "每日預計工時", _work_hours)
+	_add_field(vbox, "每日預計工時（寫進報告供總結參考）", _work_hours)
 
 	_tracking = CheckBox.new()
 	_tracking.text = "啟用背景追蹤（記錄前景視窗）"
 	vbox.add_child(_tracking)
 
 	_screenshot = CheckBox.new()
-	_screenshot.text = "啟用螢幕截圖 + 本機 OCR（圖片不上傳，只送辨識出的文字）"
+	_screenshot.text = "啟用螢幕截圖 + 本機 OCR（圖片不上傳，只留辨識文字）"
 	vbox.add_child(_screenshot)
 
 	_ocr_lang = LineEdit.new()
@@ -81,8 +79,8 @@ func _ready() -> void:
 	vbox.add_child(ocr_status)
 
 	var hint := Label.new()
-	hint.text = "提示：截圖只在本機做 OCR，圖片永遠不離開電腦；總結時只會把『文字』送到 Claude API。" \
-		+ "API key 也可改用環境變數 ANTHROPIC_API_KEY。"
+	hint.text = "這個 App 只負責記錄：寫出 activity/*.json 與 reports/report-*.md。" \
+		+ "總結交給 Claude 的本機排程任務去讀這個資料夾產生。截圖只在本機 OCR、永不上傳。"
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(hint)
@@ -112,6 +110,13 @@ func _ready() -> void:
 
 	load_from_config()
 
+func _open_export_dir() -> void:
+	var p := _export_dir.text.strip_edges()
+	if p == "":
+		return
+	DirAccess.make_dir_recursive_absolute(p)
+	OS.shell_open(p)
+
 func _add_field(parent: VBoxContainer, label_text: String, control: Control) -> void:
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
@@ -123,23 +128,18 @@ func _add_field(parent: VBoxContainer, label_text: String, control: Control) -> 
 	parent.add_child(row)
 
 func load_from_config() -> void:
-	if _api_key == null:
+	if _export_dir == null:
 		return
-	_api_key.text = Config.api_key
-	_base_url.text = Config.anthropic_base_url
+	_export_dir.text = Config.export_dir
 	_interval.value = Config.capture_interval_sec
 	_work_hours.value = Config.work_hours
 	_tracking.button_pressed = Config.tracking_enabled
 	_screenshot.button_pressed = Config.screenshot_enabled
 	_ocr_lang.text = Config.ocr_lang
 	_keep_shots.button_pressed = Config.keep_screenshots
-	var idx := Config.MODELS.find(Config.model)
-	_model.selected = idx if idx >= 0 else 0
 
 func _on_save() -> void:
-	Config.api_key = _api_key.text.strip_edges()
-	Config.model = _model.get_item_text(_model.selected)
-	Config.anthropic_base_url = _base_url.text.strip_edges()
+	Config.export_dir = _export_dir.text.strip_edges()
 	Config.capture_interval_sec = int(_interval.value)
 	Config.work_hours = float(_work_hours.value)
 	Config.screenshot_enabled = _screenshot.button_pressed

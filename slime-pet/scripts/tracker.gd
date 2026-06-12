@@ -6,7 +6,6 @@ extends Node
 signal sample_taken(sample: Dictionary)
 signal state_changed(running: bool)
 
-const SHOT_DIR := "user://screenshots"
 const TMP_SHOT := "user://bin/_ocr_tmp.png"
 
 var _timer: Timer
@@ -73,6 +72,7 @@ func _collect_sample() -> void:
 		sample["shot"] = res.get("shot", "")
 
 	Store.append_sample(sample)
+	Store.write_report(Store.today_str())   # 更新每日預彙整報告供外部工具讀取
 	# 回主執行緒發訊號 / 釋放 busy
 	call_deferred("_after_collect", sample)
 
@@ -83,20 +83,19 @@ func _after_collect(sample: Dictionary) -> void:
 ## 截圖→OCR；預設 OCR 完即刪截圖（keep_screenshots=false）
 func _capture_and_ocr() -> Dictionary:
 	var keep := Config.keep_screenshots
-	var virtual := ""
 	var rel := ""
-
+	var real := ""
 	if keep:
 		var day := Store.today_str()
-		var dir := "%s/%s" % [SHOT_DIR, day]
+		var dir := Store.screenshots_dir().path_join(day)
 		DirAccess.make_dir_recursive_absolute(dir)
 		var t := Time.get_time_dict_from_system()
 		rel = "%s/%02d%02d%02d.png" % [day, t.hour, t.minute, t.second]
-		virtual = "%s/%s" % [SHOT_DIR, rel]
+		real = dir.path_join("%02d%02d%02d.png" % [t.hour, t.minute, t.second])
 	else:
-		virtual = TMP_SHOT
+		DirAccess.make_dir_recursive_absolute("user://bin")
+		real = ProjectSettings.globalize_path(TMP_SHOT)
 
-	var real := ProjectSettings.globalize_path(virtual)
 	if not Platform.capture_screenshot(real):
 		return {"ocr": "", "shot": ""}
 

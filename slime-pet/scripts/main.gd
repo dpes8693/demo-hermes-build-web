@@ -117,7 +117,7 @@ func _input(event: InputEvent) -> void:
 func _build_menu() -> void:
 	menu = PopupMenu.new()
 	add_child(menu)
-	menu.add_item("今日總結", 0)
+	menu.add_item("今日彙整（本機）", 0)
 	menu.add_item("設定", 1)
 	menu.add_item("開始 / 暫停追蹤", 2)
 	menu.add_separator()
