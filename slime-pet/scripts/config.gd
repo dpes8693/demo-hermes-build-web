@@ -27,6 +27,9 @@ var rest_periods: String = ""
 # 寫進每日報告檔的提示，讓外部總結工具知道你一天大約要回報幾小時
 var work_hours: float = 8.0
 
+# 史萊姆大小倍率（0.5～2.0；視窗會跟著縮放，存檔即時生效）
+var slime_scale: float = 1.0
+
 signal settings_changed
 
 func _ready() -> void:
@@ -59,6 +62,7 @@ func load_settings() -> void:
 	tracking_enabled = bool(cf.get_value("capture", "tracking_enabled", true))
 	rest_periods = String(cf.get_value("capture", "rest_periods", ""))
 	work_hours = float(cf.get_value("report", "work_hours", 8.0))
+	slime_scale = clampf(float(cf.get_value("appearance", "slime_scale", 1.0)), 0.5, 2.0)
 	if export_dir.strip_edges() == "":
 		export_dir = _default_export_dir()
 	_rest_cache = parse_rest_schedule(rest_periods)
@@ -166,6 +170,7 @@ func save_settings() -> void:
 	cf.set_value("capture", "tracking_enabled", tracking_enabled)
 	cf.set_value("capture", "rest_periods", rest_periods)
 	cf.set_value("report", "work_hours", work_hours)
+	cf.set_value("appearance", "slime_scale", slime_scale)
 	cf.save(CONFIG_PATH)
 	_rest_cache = parse_rest_schedule(rest_periods)
 	settings_changed.emit()

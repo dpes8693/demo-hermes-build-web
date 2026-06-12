@@ -4,8 +4,8 @@
 
 [node name="SettingsWindow" type="Window"]
 title = "設定"
-size = Vector2i(560, 840)
-min_size = Vector2i(480, 760)
+size = Vector2i(560, 900)
+min_size = Vector2i(480, 820)
 visible = false
 exclusive = false
 script = ExtResource("1_settings")
@@ -84,6 +84,24 @@ max_value = 24.0
 step = 0.5
 value = 1.0
 suffix = " 小時"
+
+[node name="SlimeSizeField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/SlimeSizeField"]
+layout_mode = 2
+text = "史萊姆大小（存檔即時生效，不需重啟）"
+
+[node name="SlimeSize" type="SpinBox" parent="Margin/VBox/SlimeSizeField"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 50.0
+max_value = 200.0
+step = 10.0
+value = 100.0
+suffix = " %"
 
 [node name="Tracking" type="CheckBox" parent="Margin/VBox"]
 unique_name_in_owner = true
