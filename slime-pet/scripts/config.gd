@@ -13,6 +13,7 @@ var capture_interval_sec: int = 60          # 多久取樣一次（秒）
 var screenshot_enabled: bool = false        # 是否啟用「螢幕截圖 + 本機 OCR」
 var ocr_lang: String = "chi_tra+eng"        # Tesseract 辨識語言（需安裝對應語言包）
 var keep_screenshots: bool = false          # OCR 後是否保留截圖檔（預設關閉、辨識完即刪）
+var screenshot_keep_days: int = 14          # 截圖保留天數，超過自動清理（0 = 永久保留）
 var tracking_enabled: bool = true           # 是否啟用背景追蹤
 
 # 寫進每日報告檔的提示，讓外部總結工具知道你一天大約要回報幾小時
@@ -46,6 +47,7 @@ func load_settings() -> void:
 	screenshot_enabled = bool(cf.get_value("capture", "screenshot_enabled", false))
 	ocr_lang = String(cf.get_value("capture", "ocr_lang", "chi_tra+eng"))
 	keep_screenshots = bool(cf.get_value("capture", "keep_screenshots", false))
+	screenshot_keep_days = int(cf.get_value("capture", "screenshot_keep_days", 14))
 	tracking_enabled = bool(cf.get_value("capture", "tracking_enabled", true))
 	work_hours = float(cf.get_value("report", "work_hours", 8.0))
 	if export_dir.strip_edges() == "":
@@ -58,6 +60,7 @@ func save_settings() -> void:
 	cf.set_value("capture", "screenshot_enabled", screenshot_enabled)
 	cf.set_value("capture", "ocr_lang", ocr_lang)
 	cf.set_value("capture", "keep_screenshots", keep_screenshots)
+	cf.set_value("capture", "screenshot_keep_days", screenshot_keep_days)
 	cf.set_value("capture", "tracking_enabled", tracking_enabled)
 	cf.set_value("report", "work_hours", work_hours)
 	cf.save(CONFIG_PATH)

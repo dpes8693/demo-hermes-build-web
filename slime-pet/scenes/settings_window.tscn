@@ -1,0 +1,172 @@
+[gd_scene load_steps=2 format=3 uid="uid://slimepetsetwin1"]
+
+[ext_resource type="Script" uid="uid://d4nfm7b042m4r" path="res://scripts/settings_window.gd" id="1_settings"]
+
+[node name="SettingsWindow" type="Window"]
+title = "設定"
+size = Vector2i(560, 720)
+min_size = Vector2i(480, 640)
+visible = false
+exclusive = false
+script = ExtResource("1_settings")
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ExportDirField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/ExportDirField"]
+layout_mode = 2
+text = "輸出資料夾（Claude 排程端指向這裡讀取）"
+
+[node name="DirRow" type="HBoxContainer" parent="Margin/VBox/ExportDirField"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ExportDir" type="LineEdit" parent="Margin/VBox/ExportDirField/DirRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "例如 /Users/you/Documents/SlimePet"
+
+[node name="OpenDirBtn" type="Button" parent="Margin/VBox/ExportDirField/DirRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "開啟"
+
+[node name="IntervalField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/IntervalField"]
+layout_mode = 2
+text = "取樣間隔"
+
+[node name="Interval" type="SpinBox" parent="Margin/VBox/IntervalField"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 5.0
+max_value = 3600.0
+step = 5.0
+value = 5.0
+suffix = " 秒"
+
+[node name="WorkHoursField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/WorkHoursField"]
+layout_mode = 2
+text = "每日預計工時（寫進報告供總結參考）"
+
+[node name="WorkHours" type="SpinBox" parent="Margin/VBox/WorkHoursField"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 24.0
+step = 0.5
+value = 1.0
+suffix = " 小時"
+
+[node name="Tracking" type="CheckBox" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "啟用背景追蹤（記錄前景視窗）"
+
+[node name="Screenshot" type="CheckBox" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "啟用螢幕截圖 + 本機 OCR（圖片不上傳，只留辨識文字）"
+
+[node name="OcrLangField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/OcrLangField"]
+layout_mode = 2
+text = "OCR 語言（Tesseract，需裝對應語言包）"
+
+[node name="OcrLang" type="LineEdit" parent="Margin/VBox/OcrLangField"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "例如 eng 或 chi_tra+eng"
+
+[node name="KeepShots" type="CheckBox" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "保留截圖檔（預設關閉；OCR 完即刪以省空間／保護隱私）"
+
+[node name="KeepDaysField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/KeepDaysField"]
+layout_mode = 2
+text = "截圖保留天數（超過自動清理；0 = 永久保留）"
+
+[node name="KeepDays" type="SpinBox" parent="Margin/VBox/KeepDaysField"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 365.0
+step = 1.0
+value = 14.0
+suffix = " 天"
+
+[node name="OcrStatus" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AccessibilityStatus" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Hint" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "這個 App 只負責記錄：寫出 activity/*.json 與 reports/report-*.md。總結交給 Claude 的本機排程任務去讀這個資料夾產生。截圖只在本機 OCR、永不上傳。"
+autowrap_mode = 3
+
+[node name="Status" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Bottom" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="SaveBtn" type="Button" parent="Margin/VBox/Bottom"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "儲存"
+
+[node name="CloseBtn" type="Button" parent="Margin/VBox/Bottom"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "關閉"

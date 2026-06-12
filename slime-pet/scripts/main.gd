@@ -2,23 +2,35 @@ extends Node2D
 ## 桌寵主控：設定透明置頂視窗、生成史萊姆、讓牠在桌面自主漫遊、
 ## 處理拖曳/點擊、彈出選單，以及開啟「今日總結」與「設定」視窗。
 
-const SlimeScript := preload("res://scripts/slime.gd")
-const SummaryWindow := preload("res://scripts/summary_window.gd")
-const SettingsWindow := preload("res://scripts/settings_window.gd")
+enum MenuId { SUMMARY, SETTINGS, TRACKING, WANDER, QUIT }
 
-# 注意：以下三個刻意不加型別標註，因為要存取各自腳本特有的成員/方法
-# （Godot 4 對「靜態型別變數存取未知成員」會編譯失敗）。
-var slime
-var summary_win
-var settings_win
+const SUMMARY_WINDOW_SCENE := preload("res://scenes/summary_window.tscn")
+const SETTINGS_WINDOW_SCENE := preload("res://scenes/settings_window.tscn")
+
+## 漫遊速度（px / 秒）
+const WANDER_SPEED := 90.0
+## 啟動後第一次漫遊前的等待秒數範圍
+const INITIAL_IDLE_RANGE := Vector2(2.0, 5.0)
+## 每次漫遊結束後的休息秒數範圍
+const IDLE_RANGE := Vector2(3.0, 8.0)
+## 超過這個距離（px）視為拖曳而非點擊
+const CLICK_DRAG_THRESHOLD := 6.0
+## 起始視窗位置：距離螢幕右下角的偏移（px）
+const START_OFFSET := Vector2i(40, 80)
+## 漫遊抵達目標的判定距離（px）
+const ARRIVE_DISTANCE := 2.0
+
+var slime: Slime
+var summary_win: SummaryWindow
+var settings_win: SettingsWindow
 var menu: PopupMenu
 
 # 漫遊狀態（以浮點數保存視窗位置，再轉成整數設給 OS）
 var _winpos := Vector2.ZERO
 var _target := Vector2.ZERO
 var _wandering := false
+var _wander_enabled := true   # 自主移動總開關（選單可切換）
 var _idle_timer := 2.0
-var _speed := 90.0           # px / 秒
 
 # 拖曳/點擊
 var _dragging := false
@@ -28,14 +40,14 @@ var _press_pos := Vector2.ZERO
 func _ready() -> void:
 	_setup_window()
 
-	slime = SlimeScript.new()
-	slime.position = Vector2(120, 120)   # 視窗中央 (240x240)
+	slime = Slime.new()
+	slime.position = Vector2(get_window().size) / 2.0   # 視窗中央
 	add_child(slime)
 
 	_build_menu()
 
 	_winpos = Vector2(DisplayServer.window_get_position())
-	_idle_timer = randf_range(2.0, 5.0)
+	_idle_timer = randf_range(INITIAL_IDLE_RANGE.x, INITIAL_IDLE_RANGE.y)
 	set_process(true)
 
 func _setup_window() -> void:
@@ -50,8 +62,8 @@ func _setup_window() -> void:
 	var rect := _usable_rect()
 	var size := DisplayServer.window_get_size()
 	var start := Vector2i(
-		rect.position.x + rect.size.x - size.x - 40,
-		rect.position.y + rect.size.y - size.y - 80
+		rect.position.x + rect.size.x - size.x - START_OFFSET.x,
+		rect.position.y + rect.size.y - size.y - START_OFFSET.y
 	)
 	DisplayServer.window_set_position(start)
 
@@ -63,7 +75,15 @@ func _usable_rect() -> Rect2i:
 # 自主漫遊
 # ---------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	_update_ring()
+
 	if _dragging:
+		return
+
+	# 自主移動關閉、互動中（選單／設定／彙整視窗開著）時暫停漫遊
+	if not _wander_enabled or _ui_open():
+		if _wandering:
+			_stop_wandering()
 		return
 
 	if not _wandering:
@@ -71,13 +91,39 @@ func _process(delta: float) -> void:
 		if _idle_timer <= 0.0:
 			_pick_target()
 	else:
-		_winpos = _winpos.move_toward(_target, _speed * delta)
+		_winpos = _winpos.move_toward(_target, WANDER_SPEED * delta)
 		DisplayServer.window_set_position(Vector2i(_winpos.round()))
 		slime.face_dir = signf(_target.x - _winpos.x)
-		if _winpos.distance_to(_target) < 2.0:
+		if _winpos.distance_to(_target) < ARRIVE_DISTANCE:
 			_wandering = false
 			slime.moving = false
-			_idle_timer = randf_range(3.0, 8.0)
+			_idle_timer = randf_range(IDLE_RANGE.x, IDLE_RANGE.y)
+
+## 把 Tracker 狀態餵給頭上的狀態環：
+## 倒數中→進度環；取樣中（截圖/OCR）→loading；未追蹤→隱藏。
+func _update_ring() -> void:
+	if Tracker.is_busy():
+		slime.ring_loading = true
+	elif Tracker.is_running():
+		slime.ring_loading = false
+		slime.ring_progress = Tracker.sample_progress()
+	else:
+		slime.ring_loading = false
+		slime.ring_progress = -1.0
+
+func _ui_open() -> bool:
+	if menu != null and menu.visible:
+		return true
+	if settings_win != null and is_instance_valid(settings_win) and settings_win.visible:
+		return true
+	if summary_win != null and is_instance_valid(summary_win) and summary_win.visible:
+		return true
+	return false
+
+func _stop_wandering() -> void:
+	_wandering = false
+	slime.moving = false
+	_idle_timer = randf_range(IDLE_RANGE.x, IDLE_RANGE.y)
 
 func _pick_target() -> void:
 	var rect := _usable_rect()
@@ -100,12 +146,14 @@ func _input(event: InputEvent) -> void:
 			_dragging = true
 			_moved = false
 			_press_pos = event.position
+			if _wandering:
+				_stop_wandering()  # 點到史萊姆就先停下
 		else:
 			_dragging = false
 			if not _moved:
 				_open_menu()
 	elif event is InputEventMouseMotion and _dragging:
-		if event.position.distance_to(_press_pos) > 6.0:
+		if event.position.distance_to(_press_pos) > CLICK_DRAG_THRESHOLD:
 			_moved = true
 		var p := DisplayServer.window_get_position()
 		DisplayServer.window_set_position(p + Vector2i(event.relative.round()))
@@ -117,41 +165,48 @@ func _input(event: InputEvent) -> void:
 func _build_menu() -> void:
 	menu = PopupMenu.new()
 	add_child(menu)
-	menu.add_item("今日彙整（本機）", 0)
-	menu.add_item("設定", 1)
-	menu.add_item("開始 / 暫停追蹤", 2)
+	menu.add_item("今日彙整（本機）", MenuId.SUMMARY)
+	menu.add_item("設定", MenuId.SETTINGS)
+	menu.add_item("開始 / 暫停追蹤", MenuId.TRACKING)
+	menu.add_item("自主移動", MenuId.WANDER)
 	menu.add_separator()
-	menu.add_item("離開", 3)
+	menu.add_item("離開", MenuId.QUIT)
 	menu.id_pressed.connect(_on_menu_id)
 
 func _open_menu() -> void:
 	var checked := "（追蹤中）" if Tracker.is_running() else "（已暫停）"
-	menu.set_item_text(menu.get_item_index(2), "追蹤狀態 " + checked)
+	menu.set_item_text(menu.get_item_index(MenuId.TRACKING), "追蹤狀態 " + checked)
+	var wander := "（開）" if _wander_enabled else "（關）"
+	menu.set_item_text(menu.get_item_index(MenuId.WANDER), "自主移動 " + wander)
 	menu.position = DisplayServer.mouse_get_position()
 	menu.reset_size()
 	menu.popup()
 
 func _on_menu_id(id: int) -> void:
 	match id:
-		0:
+		MenuId.SUMMARY:
 			_show_summary()
-		1:
+		MenuId.SETTINGS:
 			_show_settings()
-		2:
+		MenuId.TRACKING:
 			Tracker.toggle()
-		3:
+		MenuId.QUIT:
 			get_tree().quit()
+		MenuId.WANDER:
+			_wander_enabled = not _wander_enabled
+			if not _wander_enabled and _wandering:
+				_stop_wandering()
 
 func _show_summary() -> void:
 	if summary_win == null or not is_instance_valid(summary_win):
-		summary_win = SummaryWindow.new()
+		summary_win = SUMMARY_WINDOW_SCENE.instantiate()
 		add_child(summary_win)
 	summary_win.refresh_dates()
 	summary_win.popup_centered()
 
 func _show_settings() -> void:
 	if settings_win == null or not is_instance_valid(settings_win):
-		settings_win = SettingsWindow.new()
+		settings_win = SETTINGS_WINDOW_SCENE.instantiate()
 		add_child(settings_win)
 	settings_win.load_from_config()
 	settings_win.popup_centered()

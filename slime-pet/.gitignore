@@ -2,7 +2,11 @@
 .godot/
 .import/
 export.cfg
-export_presets.cfg
+# export_presets.cfg 刻意納入版控,讓團隊共用三平台匯出設定
+# （本檔不含任何簽章身分/機器路徑;要簽章時請用本機覆寫,勿提交私鑰）
+
+# 匯出產物
+build/
 
 # Mono / C# (unused but safe)
 .mono/
