@@ -10,6 +10,8 @@ extends Window
 @onready var _ocr_lang: LineEdit = %OcrLang
 @onready var _keep_shots: CheckBox = %KeepShots
 @onready var _keep_days: SpinBox = %KeepDays
+@onready var _rest_periods: TextEdit = %RestPeriods
+@onready var _slime_size: SpinBox = %SlimeSize
 @onready var _tracking: CheckBox = %Tracking
 @onready var _status: Label = %Status
 @onready var _ocr_status: Label = %OcrStatus
@@ -80,6 +82,8 @@ func load_from_config() -> void:
 	_ocr_lang.text = Config.ocr_lang
 	_keep_shots.button_pressed = Config.keep_screenshots
 	_keep_days.value = Config.screenshot_keep_days
+	_rest_periods.text = Config.rest_periods
+	_slime_size.value = roundf(Config.slime_scale * 100.0)
 	_refresh_env_status()
 
 func _on_save() -> void:
@@ -90,7 +94,29 @@ func _on_save() -> void:
 	Config.ocr_lang = _ocr_lang.text.strip_edges()
 	Config.keep_screenshots = _keep_shots.button_pressed
 	Config.screenshot_keep_days = int(_keep_days.value)
+	Config.rest_periods = _rest_periods.text.strip_edges()
+	Config.slime_scale = float(_slime_size.value) / 100.0
 	Config.tracking_enabled = _tracking.button_pressed
 	# Tracker 監聽 Config.settings_changed，存檔後會自行套用間隔與開關
 	Config.save_settings()
-	_status.text = "已儲存。"
+	_status.text = "已儲存。" + _rest_periods_feedback()
+
+## 回報休息時段解析結果，讓使用者立刻知道格式有沒有寫對
+func _rest_periods_feedback() -> String:
+	var text := Config.rest_periods
+	if text.strip_edges() == "":
+		return ""
+	var sched := Config.parse_rest_schedule(text)
+	if sched.is_empty():
+		return "（⚠ 休息時段格式無法解析，請用 HH:MM-HH:MM，每行一條）"
+	var default_n: int = (sched.get("default", []) as Array).size()
+	var day_names := ["日", "一", "二", "三", "四", "五", "六"]
+	var overrides: Array = []
+	for d in range(7):
+		if sched.has(d):
+			overrides.append("週%s %d 段" % [day_names[d], (sched[d] as Array).size()])
+	var parts: Array = []
+	if default_n > 0 or not sched.has("default"):
+		parts.append("預設 %d 段" % default_n)
+	parts.append_array(overrides)
+	return "（休息時段已生效：%s）" % "、".join(parts)

@@ -43,6 +43,10 @@ func is_running() -> bool:
 func is_busy() -> bool:
 	return _busy
 
+## 目前是否落在使用者設定的休息時段（時段內不取樣）
+func is_resting() -> bool:
+	return Config.is_in_rest()
+
 ## 距下次取樣的進度 0.0 → 1.0（供 UI 畫倒數環）
 func sample_progress() -> float:
 	if _timer.is_stopped() or _timer.wait_time <= 0.0:
@@ -76,6 +80,8 @@ func _stop_timer() -> void:
 func _on_tick() -> void:
 	if _busy:
 		return
+	if Config.is_in_rest():
+		return  # 休息時段：跳過取樣（計時器照走，時段結束自動恢復）
 	_busy = true
 	# 在主執行緒快照本輪取樣需要的所有設定，背景執行緒不再讀共享狀態，
 	# 避免和「設定視窗儲存」跨執行緒競爭。
