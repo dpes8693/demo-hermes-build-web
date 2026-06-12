@@ -23,6 +23,8 @@ func _ready() -> void:
 	_os = OS.get_name()
 	if _os == "Windows":
 		_write_windows_helpers()
+	elif _os == "macOS":
+		_write_macos_helper()
 
 # ---------------------------------------------------------------------------
 # 前景視窗
@@ -49,19 +51,34 @@ func _windows_active() -> Dictionary:
 		return {"app": "unknown", "title": ""}
 	return {"app": app, "title": title}
 
+# Godot 的 OS.execute 會吞掉引數中的雙引號，AppleScript 字串會被破壞，
+# 所以腳本先寫成檔案再以路徑執行。
+var _mac_active_scpt := ""
+
+func _write_macos_helper() -> void:
+	DirAccess.make_dir_recursive_absolute(BIN_DIR)
+	var src := """tell application "System Events"
+	set frontApp to first application process whose frontmost is true
+	set appName to name of frontApp
+	try
+		set winTitle to name of front window of frontApp
+	on error
+		set winTitle to ""
+	end try
+end tell
+return appName & "\\n" & winTitle
+"""
+	var path := BIN_DIR + "/active.applescript"
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f:
+		f.store_string(src)
+		f.close()
+		_mac_active_scpt = ProjectSettings.globalize_path(path)
+
 func _macos_active() -> Dictionary:
-	var raw := _run("osascript", PackedStringArray([
-		"-e", "tell application \"System Events\"",
-		"-e", "set frontApp to first application process whose frontmost is true",
-		"-e", "set appName to name of frontApp",
-		"-e", "try",
-		"-e", "set winTitle to name of front window of frontApp",
-		"-e", "on error",
-		"-e", "set winTitle to \"\"",
-		"-e", "end try",
-		"-e", "end tell",
-		"-e", "return appName & \"\\n\" & winTitle",
-	]))
+	if _mac_active_scpt == "":
+		return {"app": "unknown", "title": ""}
+	var raw := _run("osascript", PackedStringArray([_mac_active_scpt]))
 	var lines := raw.split("\n", false)
 	var app := lines[0].strip_edges() if lines.size() > 0 else ""
 	var title := lines[1].strip_edges() if lines.size() > 1 else ""

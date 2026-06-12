@@ -34,7 +34,7 @@
 
 ```
 <輸出資料夾>/
-├── activity/YYYY-MM-DD.json      # 原始樣本（ts/time/app/title/ocr/shot）
+├── activity/YYYY-MM-DD.jsonl     # 原始樣本，一行一筆 JSON（ts/time/app/title/ocr/shot）
 ├── reports/report-YYYY-MM-DD.md  # 機械式預彙整（建議外部工具讀這份）
 └── screenshots/...               # 截圖（僅在「保留截圖檔」開啟時）
 ```

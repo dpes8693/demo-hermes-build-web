@@ -1,3 +1,4 @@
+class_name SummaryWindow
 extends Window
 ## 「今日彙整（本機預覽）」視窗。
 ## 純記錄器版本：不呼叫任何 API，只顯示 Store 產生的當日預彙整報告，

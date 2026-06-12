@@ -1,3 +1,4 @@
+class_name SettingsWindow
 extends Window
 ## 「設定」視窗（純記錄器版本）。
 ## 不再有 API key / 模型設定；改為設定輸出資料夾、取樣間隔、OCR、工時等。
@@ -146,12 +147,6 @@ func _on_save() -> void:
 	Config.ocr_lang = _ocr_lang.text.strip_edges()
 	Config.keep_screenshots = _keep_shots.button_pressed
 	Config.tracking_enabled = _tracking.button_pressed
+	# Tracker 監聽 Config.settings_changed，存檔後會自行套用間隔與開關
 	Config.save_settings()
-
-	Tracker.apply_config()
-	if Config.tracking_enabled and not Tracker.is_running():
-		Tracker.start()
-	elif not Config.tracking_enabled and Tracker.is_running():
-		Tracker.stop()
-
 	_status.text = "已儲存。"

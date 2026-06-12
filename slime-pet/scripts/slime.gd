@@ -1,3 +1,4 @@
+class_name Slime
 extends Node2D
 ## 程式繪製的 2D 史萊姆（不需要美術素材）。
 ## 由 main.gd 加為子節點並放在視窗中央；main 負責移動 OS 視窗，
@@ -68,7 +69,7 @@ func _draw() -> void:
 	_draw_mouth(body_center, rx, ry)
 
 func _draw_eye(center: Vector2) -> void:
-	var open := 1.0 - clamp(_blink / 0.18, 0.0, 1.0)  # 0=閉眼 1=睜眼
+	var open := 1.0 - clampf(_blink / 0.18, 0.0, 1.0)  # 0=閉眼 1=睜眼
 	var w := 11.0
 	var h := 13.0 * open + 1.0
 	_draw_ellipse(center, w, h, Color.WHITE)
@@ -89,15 +90,18 @@ func _draw_mouth(c: Vector2, rx: float, ry: float) -> void:
 		var n := 14
 		for i in range(n + 1):
 			var tt := float(i) / float(n)
-			var x := lerp(-16.0, 16.0, tt)
+			var x := lerpf(-16.0, 16.0, tt)
 			var y := sin(tt * PI) * 8.0
 			pts.append(Vector2(c.x + x, my + y))
 		for i in range(pts.size() - 1):
-			draw_line(pts[i], pts[i + 1], Color("1d2b22"), 3.0)
+			draw_line(pts[i], pts[i + 1], Color("1d2b22"), 3.0, true)
 
-func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color, segments: int = 40) -> void:
+func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color, segments: int = 64) -> void:
 	var pts := PackedVector2Array()
 	for i in range(segments):
 		var a := TAU * float(i) / float(segments)
 		pts.append(center + Vector2(cos(a) * rx, sin(a) * ry))
 	draw_colored_polygon(pts, color)
+	# draw_colored_polygon 不做抗鋸齒，補一圈同色的抗鋸齒描邊把邊緣柔化
+	pts.append(pts[0])
+	draw_polyline(pts, color, 2.0, true)
