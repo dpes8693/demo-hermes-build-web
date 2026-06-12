@@ -75,6 +75,8 @@ func _usable_rect() -> Rect2i:
 # 自主漫遊
 # ---------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	_update_ring()
+
 	if _dragging:
 		return
 
@@ -96,6 +98,18 @@ func _process(delta: float) -> void:
 			_wandering = false
 			slime.moving = false
 			_idle_timer = randf_range(IDLE_RANGE.x, IDLE_RANGE.y)
+
+## 把 Tracker 狀態餵給頭上的狀態環：
+## 倒數中→進度環；取樣中（截圖/OCR）→loading；未追蹤→隱藏。
+func _update_ring() -> void:
+	if Tracker.is_busy():
+		slime.ring_loading = true
+	elif Tracker.is_running():
+		slime.ring_loading = false
+		slime.ring_progress = Tracker.sample_progress()
+	else:
+		slime.ring_loading = false
+		slime.ring_progress = -1.0
 
 func _ui_open() -> bool:
 	if menu != null and menu.visible:

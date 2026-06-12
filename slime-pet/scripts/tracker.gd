@@ -39,6 +39,16 @@ func _apply_config() -> void:
 func is_running() -> bool:
 	return not _timer.is_stopped()
 
+## 是否正在取樣（截圖/OCR 進行中）
+func is_busy() -> bool:
+	return _busy
+
+## 距下次取樣的進度 0.0 → 1.0（供 UI 畫倒數環）
+func sample_progress() -> float:
+	if _timer.is_stopped() or _timer.wait_time <= 0.0:
+		return 0.0
+	return clampf(1.0 - _timer.time_left / _timer.wait_time, 0.0, 1.0)
+
 # start/stop/toggle 只改設定並落盤；計時器由 _on_settings_changed 統一同步，
 # 所以選單切換和設定視窗儲存走同一條路，重啟後狀態也一致。
 func start() -> void:

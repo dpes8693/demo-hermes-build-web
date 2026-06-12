@@ -35,8 +35,22 @@ const SMILE_HALF_WIDTH := 16.0
 const SMILE_HEIGHT := 8.0
 const SMILE_LINE_WIDTH := 3.0
 
+# 額頭上的取樣狀態環（畫在身體內，不會跳出視窗被裁切）
+const RING_RADIUS := 10.0
+const RING_WIDTH := 3.0
+const RING_FOREHEAD_Y := 0.52               # 環中心高度 = body_center.y - ry * 此係數
+const RING_TRACK_COLOR := Color(0, 0, 0, 0.18)
+const RING_PROGRESS_COLOR := Color(1, 1, 1, 0.95)
+const RING_LOADING_COLOR := Color("ffd166")
+const RING_LOADING_SWEEP := TAU * 0.3       # loading 弧長
+const RING_LOADING_SPEED := 5.0            # loading 旋轉速度（rad/s）
+
 var moving := false          # 由 main 設定：是否正在橫越桌面
 var face_dir := 1.0          # 1 向右、-1 向左
+
+# 取樣狀態環（由 main 每幀餵入 Tracker 狀態）
+var ring_progress := -1.0    # 0~1 = 倒數進度；< 0 = 隱藏（未追蹤）
+var ring_loading := false    # true = 取樣中，畫旋轉 loading
 
 var _t := 0.0                # 動畫時間
 var _hop_phase := 0.0        # 彈跳相位
@@ -93,6 +107,24 @@ func _draw() -> void:
 
 	# 嘴巴：移動時開心張嘴，閒置時微笑弧線
 	_draw_mouth(body_center, rx, ry)
+
+	# 額頭上的取樣狀態環（跟著果凍擠壓一起縮放位置）
+	_draw_ring(Vector2(0, body_center.y - ry * RING_FOREHEAD_Y))
+
+func _draw_ring(center: Vector2) -> void:
+	if ring_loading:
+		# 取樣中：旋轉的 loading 弧
+		var start := _t * RING_LOADING_SPEED
+		draw_arc(center, RING_RADIUS, start, start + RING_LOADING_SWEEP,
+			24, RING_LOADING_COLOR, RING_WIDTH, true)
+		return
+	if ring_progress < 0.0:
+		return  # 未追蹤：不顯示
+	# 倒數進度：淡色軌道 + 從 12 點鐘方向順時針填滿
+	draw_arc(center, RING_RADIUS, 0, TAU, 48, RING_TRACK_COLOR, RING_WIDTH, true)
+	if ring_progress > 0.001:
+		draw_arc(center, RING_RADIUS, -PI / 2, -PI / 2 + TAU * ring_progress,
+			48, RING_PROGRESS_COLOR, RING_WIDTH, true)
 
 func _draw_eye(center: Vector2) -> void:
 	var open := 1.0 - clampf(_blink / BLINK_DURATION, 0.0, 1.0)  # 0=閉眼 1=睜眼
