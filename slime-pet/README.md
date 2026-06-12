@@ -97,6 +97,10 @@ sudo apt install xdotool scrot imagemagick \
 | **macOS** | `osascript`(System Events)| 系統設定 → 隱私權 → **輔助使用** 要授權;截圖另需 **螢幕錄製** 權限 |
 | **Linux (X11)** | `xdotool` | `sudo apt install xdotool`。**Wayland** 取窗/截圖受限,建議用 X11 |
 
+**Windows 背景變黑(不透明)?** 視窗透明需要原生 OpenGL;若 Godot 因 GPU 驅動
+退回 ANGLE 就會失效。專案已設定 `gl_compatibility/fallback_to_angle=false` 強制原生
+OpenGL——若因此改成「整個視窗無法顯示/破圖」,代表該機驅動真的不支援,請先更新顯卡驅動。
+
 截圖(選用):Windows = System.Drawing;macOS = `screencapture` + `sips`(縮圖);
 Linux = `scrot` / `gnome-screenshot` / `import` 擇一,壓縮另需 `convert`(ImageMagick)。
 多螢幕:Windows/Linux 截整個虛擬桌面;macOS 截「前景視窗所在的那面螢幕」。
