@@ -7,6 +7,7 @@ signal sample_taken(sample: Dictionary)
 signal state_changed(running: bool)
 
 const TMP_SHOT := "user://bin/_ocr_tmp.png"
+const SELF_APP_LABEL := "(桌寵自身)"  # 取樣到自己時記錄的 app 名稱
 
 var _timer: Timer
 var _busy := false           # 避免取樣重疊
@@ -82,12 +83,18 @@ func _on_tick() -> void:
 ## 在背景執行緒執行；只使用 snap 中的設定
 func _collect_sample(snap: Dictionary) -> void:
 	var info := Platform.get_active_window()
+	var app := String(info.get("app", "unknown"))
+	var title := String(info.get("title", ""))
+	# 前景視窗是史萊姆自己時仍寫入樣本（維持時間軸完整），
+	# 但 app 改記為 SELF_APP_LABEL，避免報告把桌寵誤算成工作 App。
+	if _is_self_window(app, title):
+		app = SELF_APP_LABEL
 	var t := Time.get_time_dict_from_system()
 	var sample := {
 		"ts": int(Time.get_unix_time_from_system()),
 		"time": "%02d:%02d:%02d" % [t.hour, t.minute, t.second],
-		"app": String(info.get("app", "unknown")),
-		"title": String(info.get("title", "")),
+		"app": app,
+		"title": title,
 		"ocr": "",
 		"shot": "",
 	}
@@ -102,6 +109,12 @@ func _collect_sample(snap: Dictionary) -> void:
 	Store.write_report(Store.today_str(), snap["base"], snap["interval"], snap["work_hours"])
 	# 回主執行緒發訊號 / 釋放 busy
 	call_deferred("_after_collect", sample)
+
+## 判斷前景視窗是否為史萊姆本身（純函式，可在背景執行緒呼叫）
+func _is_self_window(app: String, title: String) -> bool:
+	if app == "Godot" or app == "godot":
+		return true
+	return title.contains("Slime Pet") or title.contains("桌寵史萊姆")
 
 func _after_collect(sample: Dictionary) -> void:
 	_busy = false

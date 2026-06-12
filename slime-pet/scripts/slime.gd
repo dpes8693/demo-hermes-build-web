@@ -9,6 +9,32 @@ extends Node2D
 @export var body_color: Color = Color("5fd17a")
 @export var body_color_light: Color = Color("8ff0a6")
 
+# 色票
+const COLOR_PUPIL := Color("1d2b22")
+const COLOR_MOUTH_OPEN := Color("9c3b3b")
+
+# 眨眼
+const BLINK_DURATION := 0.18
+const BLINK_INTERVAL_MIN := 2.0
+const BLINK_INTERVAL_MAX := 5.0
+
+# 彈跳
+const HOP_SPEED_MOVING := 7.0
+const HOP_SPEED_IDLE := 2.2
+const SQUASH_AMP_MOVING := 0.16
+const SQUASH_AMP_IDLE := 0.06
+const HOP_HEIGHT_MOVING := 18.0
+const HOP_HEIGHT_IDLE := 4.0
+
+# 眼睛
+const EYE_WIDTH := 11.0
+const EYE_HEIGHT := 13.0
+
+# 嘴巴
+const SMILE_HALF_WIDTH := 16.0
+const SMILE_HEIGHT := 8.0
+const SMILE_LINE_WIDTH := 3.0
+
 var moving := false          # 由 main 設定：是否正在橫越桌面
 var face_dir := 1.0          # 1 向右、-1 向左
 
@@ -18,20 +44,20 @@ var _blink := 0.0            # 眨眼計時
 var _blink_timer := 0.0
 
 func _ready() -> void:
-	_blink_timer = randf_range(2.0, 5.0)
+	_blink_timer = randf_range(BLINK_INTERVAL_MIN, BLINK_INTERVAL_MAX)
 	set_process(true)
 
 func _process(delta: float) -> void:
 	_t += delta
 	# 移動時彈得快，閒置時慢慢呼吸
-	var speed := 7.0 if moving else 2.2
+	var speed := HOP_SPEED_MOVING if moving else HOP_SPEED_IDLE
 	_hop_phase += delta * speed
 
 	# 眨眼
 	_blink_timer -= delta
 	if _blink_timer <= 0.0:
-		_blink = 0.18
-		_blink_timer = randf_range(2.0, 5.0)
+		_blink = BLINK_DURATION
+		_blink_timer = randf_range(BLINK_INTERVAL_MIN, BLINK_INTERVAL_MAX)
 	if _blink > 0.0:
 		_blink = max(0.0, _blink - delta)
 
@@ -39,11 +65,11 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	# 彈跳：用 sin 控制擠壓量，移動時幅度較大
-	var amp := 0.16 if moving else 0.06
+	var amp := SQUASH_AMP_MOVING if moving else SQUASH_AMP_IDLE
 	var squash := sin(_hop_phase) * amp           # >0 變扁、<0 變高
 	var rx := base_radius_x * (1.0 + squash * 0.6)
 	var ry := base_radius_y * (1.0 - squash)
-	var lift := -absf(sin(_hop_phase)) * (18.0 if moving else 4.0)  # 跳起時往上
+	var lift := -absf(sin(_hop_phase)) * (HOP_HEIGHT_MOVING if moving else HOP_HEIGHT_IDLE)  # 跳起時往上
 
 	var body_center := Vector2(0, lift)
 
@@ -69,32 +95,32 @@ func _draw() -> void:
 	_draw_mouth(body_center, rx, ry)
 
 func _draw_eye(center: Vector2) -> void:
-	var open := 1.0 - clampf(_blink / 0.18, 0.0, 1.0)  # 0=閉眼 1=睜眼
-	var w := 11.0
-	var h := 13.0 * open + 1.0
+	var open := 1.0 - clampf(_blink / BLINK_DURATION, 0.0, 1.0)  # 0=閉眼 1=睜眼
+	var w := EYE_WIDTH
+	var h := EYE_HEIGHT * open + 1.0
 	_draw_ellipse(center, w, h, Color.WHITE)
 	if open > 0.25:
 		# 瞳孔朝向移動方向
 		var pupil := center + Vector2(face_dir * 3.0, 2.0)
-		_draw_ellipse(pupil, 5.0, 5.0 * open, Color("1d2b22"))
+		_draw_ellipse(pupil, 5.0, 5.0 * open, COLOR_PUPIL)
 		_draw_ellipse(pupil + Vector2(-1.6, -1.6), 1.6, 1.6, Color(1, 1, 1, 0.8))
 
 func _draw_mouth(c: Vector2, rx: float, ry: float) -> void:
 	var my := c.y + ry * 0.32
 	if moving:
 		# 張開的小嘴（橢圓）
-		_draw_ellipse(Vector2(c.x, my), 12.0, 9.0, Color("9c3b3b"))
+		_draw_ellipse(Vector2(c.x, my), 12.0, 9.0, COLOR_MOUTH_OPEN)
 	else:
 		# 微笑弧線
 		var pts := PackedVector2Array()
 		var n := 14
 		for i in range(n + 1):
 			var tt := float(i) / float(n)
-			var x := lerpf(-16.0, 16.0, tt)
-			var y := sin(tt * PI) * 8.0
+			var x := lerpf(-SMILE_HALF_WIDTH, SMILE_HALF_WIDTH, tt)
+			var y := sin(tt * PI) * SMILE_HEIGHT
 			pts.append(Vector2(c.x + x, my + y))
 		for i in range(pts.size() - 1):
-			draw_line(pts[i], pts[i + 1], Color("1d2b22"), 3.0, true)
+			draw_line(pts[i], pts[i + 1], COLOR_PUPIL, SMILE_LINE_WIDTH, true)
 
 func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color, segments: int = 64) -> void:
 	var pts := PackedVector2Array()

@@ -4,6 +4,22 @@ extends Node2D
 
 enum MenuId { SUMMARY, SETTINGS, TRACKING, WANDER, QUIT }
 
+const SUMMARY_WINDOW_SCENE := preload("res://scenes/summary_window.tscn")
+const SETTINGS_WINDOW_SCENE := preload("res://scenes/settings_window.tscn")
+
+## 漫遊速度（px / 秒）
+const WANDER_SPEED := 90.0
+## 啟動後第一次漫遊前的等待秒數範圍
+const INITIAL_IDLE_RANGE := Vector2(2.0, 5.0)
+## 每次漫遊結束後的休息秒數範圍
+const IDLE_RANGE := Vector2(3.0, 8.0)
+## 超過這個距離（px）視為拖曳而非點擊
+const CLICK_DRAG_THRESHOLD := 6.0
+## 起始視窗位置：距離螢幕右下角的偏移（px）
+const START_OFFSET := Vector2i(40, 80)
+## 漫遊抵達目標的判定距離（px）
+const ARRIVE_DISTANCE := 2.0
+
 var slime: Slime
 var summary_win: SummaryWindow
 var settings_win: SettingsWindow
@@ -15,7 +31,6 @@ var _target := Vector2.ZERO
 var _wandering := false
 var _wander_enabled := true   # 自主移動總開關（選單可切換）
 var _idle_timer := 2.0
-var _speed := 90.0           # px / 秒
 
 # 拖曳/點擊
 var _dragging := false
@@ -26,13 +41,13 @@ func _ready() -> void:
 	_setup_window()
 
 	slime = Slime.new()
-	slime.position = Vector2(120, 120)   # 視窗中央 (240x240)
+	slime.position = Vector2(get_window().size) / 2.0   # 視窗中央
 	add_child(slime)
 
 	_build_menu()
 
 	_winpos = Vector2(DisplayServer.window_get_position())
-	_idle_timer = randf_range(2.0, 5.0)
+	_idle_timer = randf_range(INITIAL_IDLE_RANGE.x, INITIAL_IDLE_RANGE.y)
 	set_process(true)
 
 func _setup_window() -> void:
@@ -47,8 +62,8 @@ func _setup_window() -> void:
 	var rect := _usable_rect()
 	var size := DisplayServer.window_get_size()
 	var start := Vector2i(
-		rect.position.x + rect.size.x - size.x - 40,
-		rect.position.y + rect.size.y - size.y - 80
+		rect.position.x + rect.size.x - size.x - START_OFFSET.x,
+		rect.position.y + rect.size.y - size.y - START_OFFSET.y
 	)
 	DisplayServer.window_set_position(start)
 
@@ -74,13 +89,13 @@ func _process(delta: float) -> void:
 		if _idle_timer <= 0.0:
 			_pick_target()
 	else:
-		_winpos = _winpos.move_toward(_target, _speed * delta)
+		_winpos = _winpos.move_toward(_target, WANDER_SPEED * delta)
 		DisplayServer.window_set_position(Vector2i(_winpos.round()))
 		slime.face_dir = signf(_target.x - _winpos.x)
-		if _winpos.distance_to(_target) < 2.0:
+		if _winpos.distance_to(_target) < ARRIVE_DISTANCE:
 			_wandering = false
 			slime.moving = false
-			_idle_timer = randf_range(3.0, 8.0)
+			_idle_timer = randf_range(IDLE_RANGE.x, IDLE_RANGE.y)
 
 func _ui_open() -> bool:
 	if menu != null and menu.visible:
@@ -94,7 +109,7 @@ func _ui_open() -> bool:
 func _stop_wandering() -> void:
 	_wandering = false
 	slime.moving = false
-	_idle_timer = randf_range(3.0, 8.0)
+	_idle_timer = randf_range(IDLE_RANGE.x, IDLE_RANGE.y)
 
 func _pick_target() -> void:
 	var rect := _usable_rect()
@@ -124,7 +139,7 @@ func _input(event: InputEvent) -> void:
 			if not _moved:
 				_open_menu()
 	elif event is InputEventMouseMotion and _dragging:
-		if event.position.distance_to(_press_pos) > 6.0:
+		if event.position.distance_to(_press_pos) > CLICK_DRAG_THRESHOLD:
 			_moved = true
 		var p := DisplayServer.window_get_position()
 		DisplayServer.window_set_position(p + Vector2i(event.relative.round()))
@@ -170,14 +185,14 @@ func _on_menu_id(id: int) -> void:
 
 func _show_summary() -> void:
 	if summary_win == null or not is_instance_valid(summary_win):
-		summary_win = SummaryWindow.new()
+		summary_win = SUMMARY_WINDOW_SCENE.instantiate()
 		add_child(summary_win)
 	summary_win.refresh_dates()
 	summary_win.popup_centered()
 
 func _show_settings() -> void:
 	if settings_win == null or not is_instance_valid(settings_win):
-		settings_win = SettingsWindow.new()
+		settings_win = SETTINGS_WINDOW_SCENE.instantiate()
 		add_child(settings_win)
 	settings_win.load_from_config()
 	settings_win.popup_centered()
