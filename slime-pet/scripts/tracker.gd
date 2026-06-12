@@ -6,7 +6,7 @@ extends Node
 signal sample_taken(sample: Dictionary)
 signal state_changed(running: bool)
 
-const TMP_SHOT := "user://bin/_ocr_tmp.jpg"
+const TMP_SHOT := "user://bin/_ocr_tmp.png"   # 原始解析度暫存圖，OCR 用
 const SELF_APP_LABEL := "(桌寵自身)"  # 取樣到自己時記錄的 app 名稱
 
 var _timer: Timer
@@ -137,38 +137,36 @@ func _after_collect(sample: Dictionary) -> void:
 	_busy = false
 	sample_taken.emit(sample)
 
-## 截圖→OCR；預設 OCR 完即刪截圖（keep_screenshots=false）。背景執行緒執行。
+## 截圖→OCR→（保留時）壓縮存檔。背景執行緒執行。
+## 順序刻意是「原圖先 OCR、再壓縮」：辨識吃滿解析度，儲存才縮圖省空間。
 var _last_cleanup_date := ""
 
 func _capture_and_ocr(snap: Dictionary, screen_idx: int = -1) -> Dictionary:
-	var keep: bool = snap["keep_screenshots"]
+	# 1) 截原始解析度 PNG 到暫存
+	DirAccess.make_dir_recursive_absolute("user://bin")
+	var raw := ProjectSettings.globalize_path(TMP_SHOT)
+	if not Platform.capture_screenshot(raw, screen_idx):
+		return {"ocr": "", "shot": ""}
+
+	# 2) 對原圖 OCR
+	var ocr := ""
+	if Platform.ocr_available():
+		ocr = Platform.ocr_image(raw, snap["ocr_lang"])
+
+	# 3) 要保留才壓縮成 JPEG 存進輸出資料夾；原圖一律刪
 	var rel := ""
-	var real := ""
-	if keep:
+	if snap["keep_screenshots"]:
 		var day := Store.today_str()
 		var dir := Store.screenshots_dir(snap["base"]).path_join(day)
 		DirAccess.make_dir_recursive_absolute(dir)
 		var t := Time.get_time_dict_from_system()
-		rel = "%s/%02d%02d%02d.jpg" % [day, t.hour, t.minute, t.second]
-		real = dir.path_join("%02d%02d%02d.jpg" % [t.hour, t.minute, t.second])
+		var fname := "%02d%02d%02d.jpg" % [t.hour, t.minute, t.second]
+		Platform.compress_image(raw, dir.path_join(fname))  # 壓縮失敗時內部會複製原檔
+		rel = "%s/%s" % [day, fname]
 		# 每天第一次截圖時清掉過期的舊截圖
 		if _last_cleanup_date != day:
 			_last_cleanup_date = day
 			Store.cleanup_screenshots(snap["keep_days"], snap["base"])
-	else:
-		DirAccess.make_dir_recursive_absolute("user://bin")
-		real = ProjectSettings.globalize_path(TMP_SHOT)
-
-	if not Platform.capture_screenshot(real, screen_idx):
-		return {"ocr": "", "shot": ""}
-
-	var ocr := ""
-	if Platform.ocr_available():
-		ocr = Platform.ocr_image(real, snap["ocr_lang"])
-
-	if not keep:
-		# 辨識完立刻刪掉截圖
-		DirAccess.remove_absolute(real)
-		rel = ""
+	DirAccess.remove_absolute(raw)
 
 	return {"ocr": ocr, "shot": rel}
