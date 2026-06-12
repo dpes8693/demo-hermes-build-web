@@ -49,15 +49,41 @@
 
 ## 快速開始
 
-1. 安裝 **Godot Engine 4.3+**(標準版即可)。
-2. Godot → **Import** → 選本資料夾的 `project.godot` → 按 **▶**(F5)。
-3. 點史萊姆 → **設定** → 確認/修改「輸出資料夾」、調整取樣間隔;
-   若要更準,勾選「螢幕截圖 + 本機 OCR」(需先裝 Tesseract,見下)。
-4. 讓它在背景跑一天;隨時可在「今日彙整(本機)」預覽,或開資料夾把檔案交給 Claude 排程任務。
+1. 安裝 **Godot Engine 4.3+**(標準版即可,本專案在 4.6 開發)。
+2. `git clone` 本 repo,Godot → **Import** → 選 `slime-pet/project.godot` → 按 **▶**(F5)。
+3. (選用)裝齊下方「各平台依賴」,才能用截圖 + OCR;只看視窗標題的話不裝也能跑。
+4. 點史萊姆 → **設定** → 確認/修改「輸出資料夾」、調整取樣間隔。
+5. 讓它在背景跑;隨時可在「今日彙整(本機)」預覽,或開資料夾把檔案交給 Claude 排程任務。
 
-### 打包成執行檔
+> **要分享給同事測試?** 直接給原始碼(git clone)比打包成執行檔簡單:
+> 打包不會把下方那些系統工具一起包進去,同事一樣得自己裝;而原始碼模式只要
+> 「裝 Godot → 開 project.godot → 按 ▶」三步,還能看 log、改程式。
+> 打包成 `.app`/`.exe` 只在「要給不裝 Godot 的一般使用者」時才值得。
 
-Godot → **Project → Export**,加入對應平台 preset 後匯出。
+### 一次裝齊依賴(複製貼上)
+
+```bash
+# macOS (Homebrew)
+brew install --cask godot
+brew install tesseract tesseract-lang        # OCR(選用)
+# screencapture / sips / osascript 為系統內建,無需安裝
+
+# Linux (Debian/Ubuntu)
+sudo apt install xdotool scrot imagemagick \
+     tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-eng
+# Godot 由官網下載或 sudo snap install godot4
+
+# Windows
+#   Godot:    官網下載免安裝版
+#   截圖/取窗: PowerShell 內建,免裝
+#   OCR(選用):裝 UB-Mannheim 版 tesseract 並加進 PATH
+```
+
+### 打包成執行檔(進階,通常不需要)
+
+先在 Godot `Editor → Manage Export Templates` 下載對應版本模板,
+再 `Project → Export` 加入平台 preset 匯出。注意:**打包不含上述系統工具**,
+目標機器仍需自行安裝它們、並在 macOS 授權「輔助使用 / 螢幕錄製」。
 
 ---
 
@@ -71,8 +97,9 @@ Godot → **Project → Export**,加入對應平台 preset 後匯出。
 | **macOS** | `osascript`(System Events)| 系統設定 → 隱私權 → **輔助使用** 要授權;截圖另需 **螢幕錄製** 權限 |
 | **Linux (X11)** | `xdotool` | `sudo apt install xdotool`。**Wayland** 取窗/截圖受限,建議用 X11 |
 
-截圖(選用):Windows = System.Drawing;macOS = `screencapture`;
-Linux = `scrot` / `gnome-screenshot` / `import` 擇一。
+截圖(選用):Windows = System.Drawing;macOS = `screencapture` + `sips`(縮圖);
+Linux = `scrot` / `gnome-screenshot` / `import` 擇一,壓縮另需 `convert`(ImageMagick)。
+多螢幕:Windows/Linux 截整個虛擬桌面;macOS 截「前景視窗所在的那面螢幕」。
 
 ### 本機 OCR:安裝 Tesseract(啟用「螢幕截圖 + OCR」才需要)
 
