@@ -109,6 +109,43 @@ func dates() -> Array:
 	return result
 
 # ---------------------------------------------------------------------------
+# 截圖清理：刪除超過 keep_days 天的日期子資料夾（資料夾名即 YYYY-MM-DD）
+# ---------------------------------------------------------------------------
+func cleanup_screenshots(keep_days: int, base: String = "") -> void:
+	if keep_days <= 0:
+		return
+	var dir_path := screenshots_dir(base)
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return
+	# 用「今天 - keep_days」的日期字串比較；資料夾名是 ISO 日期，字典序即時間序
+	var cutoff_ts := Time.get_unix_time_from_system() - keep_days * 86400
+	var cutoff := Time.get_date_string_from_unix_time(int(cutoff_ts))
+	d.list_dir_begin()
+	var fname := d.get_next()
+	while fname != "":
+		if d.current_is_dir() and fname.match("????-??-??") and fname < cutoff:
+			_remove_dir_recursive(dir_path.path_join(fname))
+		fname = d.get_next()
+	d.list_dir_end()
+
+func _remove_dir_recursive(path: String) -> void:
+	var d := DirAccess.open(path)
+	if d == null:
+		return
+	d.list_dir_begin()
+	var fname := d.get_next()
+	while fname != "":
+		var child := path.path_join(fname)
+		if d.current_is_dir():
+			_remove_dir_recursive(child)
+		else:
+			DirAccess.remove_absolute(child)
+		fname = d.get_next()
+	d.list_dir_end()
+	DirAccess.remove_absolute(path)
+
+# ---------------------------------------------------------------------------
 # 每日預彙整報告（純機械式：時間佔比 + 時間軸 + OCR 摘錄）
 # 由 Tracker 在每次取樣後呼叫 write_report() 更新，外部總結工具直接讀這份。
 # ---------------------------------------------------------------------------

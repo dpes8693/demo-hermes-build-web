@@ -6,7 +6,7 @@ extends Node
 signal sample_taken(sample: Dictionary)
 signal state_changed(running: bool)
 
-const TMP_SHOT := "user://bin/_ocr_tmp.png"
+const TMP_SHOT := "user://bin/_ocr_tmp.jpg"
 const SELF_APP_LABEL := "(桌寵自身)"  # 取樣到自己時記錄的 app 名稱
 
 var _timer: Timer
@@ -69,6 +69,10 @@ func _on_tick() -> void:
 	_busy = true
 	# 在主執行緒快照本輪取樣需要的所有設定，背景執行緒不再讀共享狀態，
 	# 避免和「設定視窗儲存」跨執行緒競爭。
+	# 螢幕幾何也要在主執行緒先抄下來（DisplayServer 不保證執行緒安全）
+	var screens: Array = []
+	for i in range(DisplayServer.get_screen_count()):
+		screens.append(Rect2(DisplayServer.screen_get_position(i), DisplayServer.screen_get_size(i)))
 	var snap := {
 		"base": Store.base_dir(),
 		"interval": Config.capture_interval_sec,
@@ -76,6 +80,8 @@ func _on_tick() -> void:
 		"screenshot_enabled": Config.screenshot_enabled,
 		"ocr_lang": Config.ocr_lang,
 		"keep_screenshots": Config.keep_screenshots,
+		"keep_days": Config.screenshot_keep_days,
+		"screens": screens,
 	}
 	# 把取窗 / 截圖 / OCR 丟到背景執行緒，主執行緒不卡
 	WorkerThreadPool.add_task(_collect_sample.bind(snap))
@@ -100,7 +106,11 @@ func _collect_sample(snap: Dictionary) -> void:
 	}
 
 	if snap["screenshot_enabled"]:
-		var res := _capture_and_ocr(snap)
+		# 多螢幕時截「前景視窗所在的螢幕」（只有 macOS 需要；其他平台截整個虛擬桌面）
+		var screen_idx := -1
+		if info.has("win_pos"):
+			screen_idx = _screen_index_at(info["win_pos"], snap["screens"])
+		var res := _capture_and_ocr(snap, screen_idx)
 		sample["ocr"] = res.get("ocr", "")
 		sample["shot"] = res.get("shot", "")
 
@@ -109,6 +119,13 @@ func _collect_sample(snap: Dictionary) -> void:
 	Store.write_report(Store.today_str(), snap["base"], snap["interval"], snap["work_hours"])
 	# 回主執行緒發訊號 / 釋放 busy
 	call_deferred("_after_collect", sample)
+
+## 找出座標落在哪面螢幕（純函式）；找不到回 -1（沿用預設＝主螢幕）
+func _screen_index_at(pos: Vector2, screens: Array) -> int:
+	for i in range(screens.size()):
+		if (screens[i] as Rect2).has_point(pos):
+			return i
+	return -1
 
 ## 判斷前景視窗是否為史萊姆本身（純函式，可在背景執行緒呼叫）
 func _is_self_window(app: String, title: String) -> bool:
@@ -121,7 +138,9 @@ func _after_collect(sample: Dictionary) -> void:
 	sample_taken.emit(sample)
 
 ## 截圖→OCR；預設 OCR 完即刪截圖（keep_screenshots=false）。背景執行緒執行。
-func _capture_and_ocr(snap: Dictionary) -> Dictionary:
+var _last_cleanup_date := ""
+
+func _capture_and_ocr(snap: Dictionary, screen_idx: int = -1) -> Dictionary:
 	var keep: bool = snap["keep_screenshots"]
 	var rel := ""
 	var real := ""
@@ -130,13 +149,17 @@ func _capture_and_ocr(snap: Dictionary) -> Dictionary:
 		var dir := Store.screenshots_dir(snap["base"]).path_join(day)
 		DirAccess.make_dir_recursive_absolute(dir)
 		var t := Time.get_time_dict_from_system()
-		rel = "%s/%02d%02d%02d.png" % [day, t.hour, t.minute, t.second]
-		real = dir.path_join("%02d%02d%02d.png" % [t.hour, t.minute, t.second])
+		rel = "%s/%02d%02d%02d.jpg" % [day, t.hour, t.minute, t.second]
+		real = dir.path_join("%02d%02d%02d.jpg" % [t.hour, t.minute, t.second])
+		# 每天第一次截圖時清掉過期的舊截圖
+		if _last_cleanup_date != day:
+			_last_cleanup_date = day
+			Store.cleanup_screenshots(snap["keep_days"], snap["base"])
 	else:
 		DirAccess.make_dir_recursive_absolute("user://bin")
 		real = ProjectSettings.globalize_path(TMP_SHOT)
 
-	if not Platform.capture_screenshot(real):
+	if not Platform.capture_screenshot(real, screen_idx):
 		return {"ocr": "", "shot": ""}
 
 	var ocr := ""

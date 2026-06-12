@@ -9,6 +9,7 @@ extends Window
 @onready var _screenshot: CheckBox = %Screenshot
 @onready var _ocr_lang: LineEdit = %OcrLang
 @onready var _keep_shots: CheckBox = %KeepShots
+@onready var _keep_days: SpinBox = %KeepDays
 @onready var _tracking: CheckBox = %Tracking
 @onready var _status: Label = %Status
 @onready var _ocr_status: Label = %OcrStatus
@@ -78,6 +79,7 @@ func load_from_config() -> void:
 	_screenshot.button_pressed = Config.screenshot_enabled
 	_ocr_lang.text = Config.ocr_lang
 	_keep_shots.button_pressed = Config.keep_screenshots
+	_keep_days.value = Config.screenshot_keep_days
 	_refresh_env_status()
 
 func _on_save() -> void:
@@ -87,6 +89,7 @@ func _on_save() -> void:
 	Config.screenshot_enabled = _screenshot.button_pressed
 	Config.ocr_lang = _ocr_lang.text.strip_edges()
 	Config.keep_screenshots = _keep_shots.button_pressed
+	Config.screenshot_keep_days = int(_keep_days.value)
 	Config.tracking_enabled = _tracking.button_pressed
 	# Tracker 監聽 Config.settings_changed，存檔後會自行套用間隔與開關
 	Config.save_settings()
