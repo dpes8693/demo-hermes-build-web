@@ -1,0 +1,13 @@
+# Godot 4 generated files
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# Mono / C# (unused but safe)
+.mono/
+data_*/
+
+# OS junk
+.DS_Store
+Thumbs.db
