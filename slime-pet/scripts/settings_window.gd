@@ -31,17 +31,35 @@ func _ready() -> void:
 
 	load_from_config()
 
+var _access_checking := false
+
+# 取前景視窗要呼叫 osascript，沒權限時會等系統超時、卡住好幾秒，
+# 所以丟到背景執行緒，主執行緒先顯示「偵測中…」。
 func _refresh_env_status() -> void:
-	if _access_status == null:
+	if _access_status == null or _access_checking:
 		return
+	_access_checking = true
+	_access_status.text = "前景視窗偵測中…"
+	_access_status.remove_theme_color_override("font_color")
+	WorkerThreadPool.add_task(_check_access_in_thread)
+
+## 背景執行緒執行
+func _check_access_in_thread() -> void:
 	var info: Dictionary = Platform.get_active_window()
-	if OS.get_name() == "macOS" and String(info.get("app", "unknown")) == "unknown":
+	var ok: bool = not (OS.get_name() == "macOS" and String(info.get("app", "unknown")) == "unknown")
+	call_deferred("_show_access_result", ok)
+
+func _show_access_result(ok: bool) -> void:
+	_access_checking = false
+	if not is_instance_valid(_access_status):
+		return
+	if ok:
+		_access_status.text = "前景視窗偵測正常 ✓"
+		_access_status.add_theme_color_override("font_color", Color(0.5, 0.85, 0.6))
+	else:
 		_access_status.text = "未取得『輔助使用』權限，無法記錄前景視窗：" \
 			+ "請到 系統設定 → 隱私權與安全性 → 輔助使用 授權本 App"
 		_access_status.add_theme_color_override("font_color", Color(0.9, 0.6, 0.5))
-	else:
-		_access_status.text = "前景視窗偵測正常 ✓"
-		_access_status.add_theme_color_override("font_color", Color(0.5, 0.85, 0.6))
 
 func _open_export_dir() -> void:
 	var p := _export_dir.text.strip_edges()
