@@ -210,6 +210,7 @@ func _open_menu() -> void:
 	menu.position = DisplayServer.mouse_get_position()
 	menu.reset_size()
 	menu.popup()
+	_schedule_transparency_fix()
 
 func _on_menu_id(id: int) -> void:
 	match id:
@@ -230,12 +231,32 @@ func _show_summary() -> void:
 	if summary_win == null or not is_instance_valid(summary_win):
 		summary_win = SUMMARY_WINDOW_SCENE.instantiate()
 		add_child(summary_win)
+		summary_win.visibility_changed.connect(_schedule_transparency_fix)
 	summary_win.refresh_dates()
 	summary_win.popup_centered()
+	_schedule_transparency_fix()
 
 func _show_settings() -> void:
 	if settings_win == null or not is_instance_valid(settings_win):
 		settings_win = SETTINGS_WINDOW_SCENE.instantiate()
 		add_child(settings_win)
+		settings_win.visibility_changed.connect(_schedule_transparency_fix)
 	settings_win.load_from_config()
 	settings_win.popup_centered()
+	_schedule_transparency_fix()
+
+# ---------------------------------------------------------------------------
+# Windows 已知問題：開啟原生子視窗（彙整/設定/選單）會讓主視窗失去
+# per-pixel 透明、背景變黑，且關閉子視窗後不會自行恢復。
+# 解法：子視窗開/關後重新套用透明旗標。macOS / Linux 上重複設定無副作用。
+# ---------------------------------------------------------------------------
+func _schedule_transparency_fix() -> void:
+	_reapply_transparency.call_deferred()
+	# 子視窗在 OS 端的建立/銷毀是非同步的，稍後再補套一次保險
+	get_tree().create_timer(0.3).timeout.connect(_reapply_transparency)
+
+func _reapply_transparency() -> void:
+	var w := get_window()
+	w.transparent_bg = true
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_TRANSPARENT, true, w.get_window_id())
+	RenderingServer.set_default_clear_color(Color(0, 0, 0, 0))
