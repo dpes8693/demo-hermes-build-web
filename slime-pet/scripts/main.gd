@@ -104,7 +104,7 @@ func _process(delta: float) -> void:
 func _update_ring() -> void:
 	if Tracker.is_busy():
 		slime.ring_loading = true
-	elif Tracker.is_running():
+	elif Tracker.is_running() and not Tracker.is_resting():
 		slime.ring_loading = false
 		slime.ring_progress = Tracker.sample_progress()
 	else:
@@ -153,11 +153,21 @@ func _input(event: InputEvent) -> void:
 			if not _moved:
 				_open_menu()
 	elif event is InputEventMouseMotion and _dragging:
+		# 跨螢幕拖曳時 macOS 可能吃掉「放開」事件，_dragging 會卡住，
+		# 之後滑鼠滑過就把視窗推走。改成每次移動都驗證左鍵真的還按著。
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_dragging = false
+			return
 		if event.position.distance_to(_press_pos) > CLICK_DRAG_THRESHOLD:
 			_moved = true
 		var p := DisplayServer.window_get_position()
 		DisplayServer.window_set_position(p + Vector2i(event.relative.round()))
 		_winpos = Vector2(DisplayServer.window_get_position())
+
+## 失焦也視為拖曳結束（放開事件遺失時的保險，否則 _dragging 卡住會連漫遊都停）
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_dragging = false
 
 # ---------------------------------------------------------------------------
 # 選單

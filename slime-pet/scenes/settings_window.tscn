@@ -4,8 +4,8 @@
 
 [node name="SettingsWindow" type="Window"]
 title = "設定"
-size = Vector2i(560, 720)
-min_size = Vector2i(480, 640)
+size = Vector2i(560, 840)
+min_size = Vector2i(480, 760)
 visible = false
 exclusive = false
 script = ExtResource("1_settings")
@@ -113,6 +113,21 @@ placeholder_text = "例如 eng 或 chi_tra+eng"
 unique_name_in_owner = true
 layout_mode = 2
 text = "保留截圖檔（預設關閉；OCR 完即刪以省空間／保護隱私）"
+
+[node name="RestPeriodsField" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/RestPeriodsField"]
+layout_mode = 2
+text = "休息時段（暫停取樣；每行一條，行首寫星期幾可覆寫該日）"
+
+[node name="RestPeriods" type="TextEdit" parent="Margin/VBox/RestPeriodsField"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 84)
+placeholder_text = "12:00-13:00, 18:00-08:00\n二 12:00-17:00      ← 週二晚上工作，只休下午\n六日                 ← 週末整天取樣（空 = 全天取樣）"
 
 [node name="KeepDaysField" type="VBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
